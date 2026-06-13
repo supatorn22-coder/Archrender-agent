@@ -1,8 +1,11 @@
 const MODELS = [
+  'gemini-3-pro-image',
+  'gemini-3-pro-image-preview',
   'gemini-3.1-flash-image',
+  'gemini-3.1-flash-image-preview',
   'gemini-2.5-flash-image',
-  'gemini-2.0-flash-exp',
 ];
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
