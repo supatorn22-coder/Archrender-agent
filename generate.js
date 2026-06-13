@@ -2,12 +2,6 @@
 // Proxies image generation to Google Gemini, keeping the API key server-side.
 // Set GEMINI_API_KEY in Vercel → Project → Settings → Environment Variables.
 
-export const config = {
-  api: {
-    bodyParser: { sizeLimit: '10mb' }
-  }
-};
-
 const MODELS = [
   'gemini-3.1-flash-image',
   'gemini-2.5-flash-image',
