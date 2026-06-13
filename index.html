@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Khangkan Render Agent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=Trirong:wght@300;600&display=swap');
+
+  :root {
+    --bg:#151210; --surface:#1e1a17; --surface2:#262018;
+    --border:#3a2e24; --accent:#AF5B33; --muted:#7a6a5a;
+    --cream:#e8ddd0; --text:#d4c5b0; --green:#5a8a5a; --radius:8px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans Thai',sans-serif; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  /* HEADER */
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; border-bottom:1px solid var(--border); background:var(--surface);
+    position:sticky; top:0; z-index:50;
+  }
+  .logo { font-family:'Trirong',serif; font-weight:600; font-size:1rem; color:var(--cream); letter-spacing:0.03em; }
+  .logo span { color:var(--accent); }
+  .badge { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--muted); border:1px solid var(--border); padding:3px 9px; border-radius:20px; }
+
+  /* TABS — mobile only */
+  .tabs { display:none; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:53px; z-index:49; }
+  .tab { flex:1; padding:13px; text-align:center; font-size:0.8rem; color:var(--muted); border-bottom:2px solid transparent; cursor:pointer; font-weight:500; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab .cnt { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--green); margin-left:4px; }
+
+  /* LAYOUT */
+  .app { display:flex; min-height:calc(100vh - 53px); }
+  .panel-input { width:340px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); overflow-y:auto; }
+  .panel-output { flex:1; display:flex; flex-direction:column; background:var(--bg); }
+
+  .label { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.14em; color:var(--muted); text-transform:uppercase; padding:14px 16px 6px; }
+
+  /* UPLOAD */
+  .upload { margin:0 14px 12px; border:1.5px dashed var(--border); border-radius:var(--radius); padding:14px 10px; text-align:center; cursor:pointer; background:var(--surface2); position:relative; transition:.2s; }
+  .upload.drag { border-color:var(--accent); background:#1f1610; }
+  .upload input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .upload .ic { font-size:1.3rem; margin-bottom:4px; }
+  .upload .ti { font-size:0.74rem; color:var(--cream); font-weight:500; }
+  .upload .su { font-size:0.62rem; color:var(--muted); margin-top:2px; }
+  .upload img { width:100%; max-height:130px; object-fit:cover; border-radius:5px; }
+  .upload .ok { font-size:0.62rem; color:var(--green); margin-top:5px; font-family:'IBM Plex Mono',monospace; }
+
+  textarea {
+    width:calc(100% - 28px); margin:0 14px 12px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--text); font-family:'IBM Plex Sans Thai',sans-serif;
+    font-size:0.78rem; padding:11px 12px; resize:vertical; min-height:84px; line-height:1.6;
+  }
+  textarea:focus { outline:none; border-color:var(--accent); }
+  textarea::placeholder { color:var(--muted); }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:0 14px 12px; }
+  .chip { font-size:0.66rem; padding:5px 11px; border-radius:20px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); cursor:pointer; transition:.2s; }
+  .chip.active { border-color:var(--accent); color:var(--accent); background:#2a1a10; }
+
+  .outputs { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:0 14px 14px; }
+  .opt { display:flex; align-items:center; gap:7px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:9px 10px; cursor:pointer; transition:.2s; }
+  .opt.active { border-color:var(--accent); background:#2a1a10; }
+  .opt .n { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--accent); }
+  .opt .nm { font-size:0.7rem; color:var(--cream); flex:1; }
+
+  .genbtn { display:flex; align-items:center; justify-content:center; gap:8px; margin:4px 14px 18px; width:calc(100% - 28px); padding:14px; background:var(--accent); border:none; border-radius:var(--radius); color:#fff; font-family:'IBM Plex Sans Thai',sans-serif; font-size:0.85rem; font-weight:600; cursor:pointer; transition:.2s; }
+  .genbtn:active { transform:scale(.98); }
+  .genbtn:disabled { background:#7a3f24; cursor:not-allowed; }
+
+  /* OUTPUT */
+  .toolbar { display:flex; align-items:center; justify-content:space-between; padding:11px 18px; border-bottom:1px solid var(--border); background:var(--surface); }
+  .toolbar .t { font-family:'IBM Plex Mono',monospace; font-size:0.64rem; color:var(--muted); letter-spacing:0.1em; }
+  .toolbar .actions { display:flex; gap:8px; }
+  .ibtn { background:var(--surface2); border:1px solid var(--border); border-radius:5px; color:var(--muted); cursor:pointer; padding:6px 11px; font-size:0.68rem; }
+  .ibtn:active { color:var(--cream); }
+
+  .canvas { flex:1; overflow-y:auto; padding:16px; display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:14px; align-content:start; }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .ch { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); }
+  .ch .num { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--accent); background:#2a1a10; padding:2px 6px; border-radius:3px; }
+  .ch .ti { font-size:0.74rem; color:var(--cream); font-weight:500; flex:1; }
+  .ch .st { font-size:0.6rem; font-family:'IBM Plex Mono',monospace; }
+  .st-pending { color:var(--muted); } .st-generating { color:#c8a84b; } .st-done { color:var(--green); } .st-error { color:#c45a5a; }
+
+  .pbar { height:2px; background:var(--border); position:relative; overflow:hidden; }
+  .pbar .anim { position:absolute; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:sh 1.5s infinite; }
+  @keyframes sh { 0%{left:-40%} 100%{left:140%} }
+  .pbar .done { height:100%; width:100%; background:var(--green); }
+  .pbar .err { height:100%; width:100%; background:#c45a5a; }
+
+  .cbody { background:var(--surface2); min-height:200px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .cbody img { width:100%; display:block; }
+  .ph { display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--border); }
+  .ph .pi { font-size:1.8rem; } .ph .pt { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.08em; }
+  .errbox { padding:14px; font-size:0.68rem; color:#c45a5a; font-family:'IBM Plex Mono',monospace; line-height:1.6; }
+
+  .cfoot { padding:8px 14px; border-top:1px solid var(--border); display:flex; gap:6px; }
+  .dlbtn { flex:1; font-size:0.66rem; padding:5px 8px; background:#2a1a10; border:1px solid var(--accent); border-radius:4px; color:var(--accent); cursor:pointer; font-family:'IBM Plex Mono',monospace; }
+  .dlbtn:disabled { opacity:.3; cursor:not-allowed; border-color:var(--border); color:var(--muted); }
+
+  .empty { grid-column:1/-1; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:340px; gap:12px; color:var(--muted); }
+  .empty .ei { font-size:3rem; opacity:.25; } .empty .et { font-family:'Trirong',serif; font-size:1rem; color:var(--border); } .empty .es { font-family:'IBM Plex Mono',monospace; font-size:0.64rem; letter-spacing:0.08em; }
+
+  .log { border-top:1px solid var(--border); background:var(--surface); max-height:110px; overflow-y:auto; padding:7px 16px; }
+  .logline { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; padding:1px 0; line-height:1.6; }
+  .li-info{color:var(--muted)} .li-success{color:var(--green)} .li-warn{color:#c8a84b} .li-error{color:#c45a5a}
+
+  /* MOBILE */
+  @media (max-width:768px) {
+    .tabs { display:flex; }
+    .panel-input { width:100%; border-right:none; display:none; }
+    .panel-output { display:none; }
+    .panel-input.show, .panel-output.show { display:flex; flex-direction:column; }
+    .panel-input.show { display:block; }
+    .canvas { grid-template-columns:1fr; padding:14px; }
+    .badge { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">khangkan <span>·</span> render agent</div>
+  <div class="badge" id="apiStatus">CHECKING API…</div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" id="tabInput" onclick="switchTab('input')">⚙️ Input</div>
+  <div class="tab" id="tabOutput" onclick="switchTab('output')">🖼 Output<span class="cnt" id="tabCnt"></span></div>
+</div>
+
+<div class="app">
+  <!-- INPUT -->
+  <div class="panel-input show" id="panelInput">
+    <div class="label">Sketch / Drawing Input</div>
+    <div class="upload" id="zSketch">
+      <input type="file" accept="image/*" onchange="loadImg(event,'sketch')">
+      <div id="sketchEmpty"><div class="ic">📐</div><div class="ti">Drop Sketch or Plan</div><div class="su">Floor plan · Perspective · Section</div></div>
+      <img id="sketchPrev" style="display:none">
+      <div class="ok" id="sketchOk" style="display:none">Sketch loaded ✓</div>
+    </div>
+
+    <div class="label">Reference Mood Image</div>
+    <div class="upload" id="zMood">
+      <input type="file" accept="image/*" onchange="loadImg(event,'mood')">
+      <div id="moodEmpty"><div class="ic">🎨</div><div class="ti">Drop Mood Reference</div><div class="su">Style · Material · Atmosphere</div></div>
+      <img id="moodPrev" style="display:none">
+      <div class="ok" id="moodOk" style="display:none">Mood ref loaded ✓</div>
+    </div>
+
+    <div class="label">Design Brief</div>
+    <textarea id="brief" placeholder="อธิบายโปรเจกต์...&#10;e.g. Thai contemporary house, teak wood, split skillion roof, tropical garden, warm lighting..."></textarea>
+
+    <div class="label">Render Style</div>
+    <div class="chips" id="styleChips"></div>
+
+    <div class="label">Output Views</div>
+    <div class="outputs" id="outputGrid"></div>
+
+    <button class="genbtn" id="genBtn" onclick="generate()">⚡ Generate All Renders</button>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="panel-output" id="panelOutput">
+    <div class="toolbar">
+      <span class="t">RENDER OUTPUT BOARD</span>
+      <div class="actions">
+        <button class="ibtn" onclick="downloadAll()">⬇ All</button>
+        <button class="ibtn" onclick="clearAll()">✕ Clear</button>
+      </div>
+    </div>
+    <div class="canvas" id="canvas">
+      <div class="empty" id="empty">
+        <div class="ei">🏗</div><div class="et">Awaiting Input</div><div class="es">Upload sketch · Write brief · Generate</div>
+      </div>
+    </div>
+    <div class="log" id="logPanel"></div>
+  </div>
+</div>
+
+<script>
+const OUTPUTS = [
+  {key:"plan",num:"01",label:"Plan View",icon:"🗺",view:"top-down architectural plan view, orthographic bird's eye, layout, circulation, landscape zones"},
+  {key:"perspective",num:"02",label:"Perspective",icon:"🏠",view:"eye-level 3D perspective, golden hour cinematic lighting, lush vegetation, people for scale"},
+  {key:"section",num:"03",label:"Section",icon:"✂️",view:"cross-section cut, interior spaces, structure, ceiling heights, landscape grading"},
+  {key:"elevation",num:"04",label:"Elevation",icon:"📏",view:"front elevation, facade, materials, openings, landscape foreground, shadow study"},
+  {key:"blowup",num:"05",label:"Blowup Detail",icon:"🔍",view:"close-up construction detail 1:10, material connections, joinery, teak wood concrete steel"},
+  {key:"material",num:"06",label:"Material Board",icon:"🪵",view:"flat lay material palette, wood stone concrete metal fabric plant textures, studio photography"},
+  {key:"planting",num:"07",label:"Planting Plan",icon:"🌿",view:"top-down planting plan, species layout, canopy trees, shrubs, ground cover, tropical Thai garden"},
+];
+const STYLES = ["Photorealistic CGI","Architectural Watercolor","Pencil Rendering","Sketch Line Art","Night Cinematic"];
+
+const state = { sketch:null, mood:null, style:"Photorealistic CGI", active:new Set(OUTPUTS.map(o=>o.key)), cards:{}, generating:false };
+
+// INIT UI
+function initUI(){
+  const sc = document.getElementById('styleChips');
+  STYLES.forEach(s=>{
+    const el=document.createElement('div'); el.className='chip'+(s===state.style?' active':''); el.textContent=s;
+    el.onclick=()=>{ state.style=s; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); };
+    sc.appendChild(el);
+  });
+  const og = document.getElementById('outputGrid');
+  OUTPUTS.forEach(o=>{
+    const el=document.createElement('div'); el.className='opt active'; el.dataset.key=o.key;
+    el.innerHTML=`<span class="n">${o.num}</span><span class="nm">${o.label}</span><span>${o.icon}</span>`;
+    el.onclick=()=>{ if(state.active.has(o.key)){state.active.delete(o.key);el.classList.remove('active');}else{state.active.add(o.key);el.classList.add('active');} };
+    og.appendChild(el);
+  });
+  // drag-drop
+  ['sketch','mood'].forEach(t=>{
+    const z=document.getElementById(t==='sketch'?'zSketch':'zMood');
+    z.ondragover=e=>{e.preventDefault();z.classList.add('drag');};
+    z.ondragleave=()=>z.classList.remove('drag');
+    z.ondrop=e=>{e.preventDefault();z.classList.remove('drag');loadImg({target:{files:e.dataTransfer.files}},t);};
+  });
+}
+
+// API health check
+async function checkAPI(){
+  const st=document.getElementById('apiStatus');
+  try{
+    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+    const d=await r.json();
+    if(d.error && d.error.includes('not configured')){ st.textContent='⚠ API KEY MISSING'; st.style.color='#c45a5a'; }
+    else { st.textContent='GEMINI · CONNECTED'; st.style.color='var(--green)'; }
+  }catch(e){ st.textContent='⚠ NO BACKEND'; st.style.color='#c45a5a'; }
+}
+
+// resize+encode
+function resizeImg(file,maxDim=1024){return new Promise(res=>{
+  const r=new FileReader();
+  r.onload=e=>{const img=new Image();img.onload=()=>{
+    let{width:w,height:h}=img;
+    if(w>maxDim||h>maxDim){ if(w>h){h=Math.round(h*maxDim/w);w=maxDim;}else{w=Math.round(w*maxDim/h);h=maxDim;} }
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+    res(c.toDataURL('image/jpeg',0.85));
+  };img.onerror=()=>res(e.target.result);img.src=e.target.result;};
+  r.readAsDataURL(file);
+});}
+
+async function loadImg(ev,type){
+  const f=ev.target.files[0]; if(!f)return;
+  const src=await resizeImg(f);
+  if(type==='sketch'){ state.sketch=src; show('sketch',src); }
+  else { state.mood=src; show('mood',src); }
+  log(`${type} loaded: ${f.name}`,'success');
+}
+function show(t,src){
+  document.getElementById(t+'Prev').src=src;
+  document.getElementById(t+'Prev').style.display='block';
+  document.getElementById(t+'Empty').style.display='none';
+  document.getElementById(t+'Ok').style.display='block';
+}
+
+function log(msg,type='info'){
+  const p=document.getElementById('logPanel');
+  const l=document.createElement('div'); l.className='logline li-'+type;
+  const time=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  l.textContent=`[${time}] ${msg}`; p.appendChild(l); p.scrollTop=p.scrollHeight;
+}
+
+function switchTab(t){
+  document.getElementById('tabInput').classList.toggle('active',t==='input');
+  document.getElementById('tabOutput').classList.toggle('active',t==='output');
+  document.getElementById('panelInput').classList.toggle('show',t==='input');
+  document.getElementById('panelOutput').classList.toggle('show',t==='output');
+}
+
+function buildCards(){
+  const c=document.getElementById('canvas');
+  const e=document.getElementById('empty'); if(e)e.remove();
+  c.innerHTML='';
+  OUTPUTS.filter(o=>state.active.has(o.key)).forEach(o=>{
+    const card=document.createElement('div'); card.className='card'; card.id='card-'+o.key;
+    card.innerHTML=`
+      <div class="ch"><span class="num">${o.num}</span><span class="ti">${o.label}</span><span class="st st-pending" id="st-${o.key}">PENDING</span></div>
+      <div class="pbar" id="pb-${o.key}"></div>
+      <div class="cbody" id="body-${o.key}"><div class="ph"><div class="pi">⬜</div><div class="pt">AWAITING RENDER</div></div></div>
+      <div class="cfoot"><button class="dlbtn" id="dl-${o.key}" disabled onclick="dl('${o.key}')">↓ Download</button></div>`;
+    c.appendChild(card);
+    state.cards[o.key]={key:o.key,img:null};
+  });
+}
+
+async function generate(){
+  if(state.generating)return;
+  if(!state.sketch && !document.getElementById('brief').value.trim()){ log('⚠ Add sketch or brief first','error'); return; }
+  if(state.active.size===0){ log('⚠ Select at least one output','error'); return; }
+  state.generating=true;
+  const btn=document.getElementById('genBtn'); btn.disabled=true; btn.textContent='⏳ Generating...';
+  buildCards();
+  if(window.innerWidth<=768) switchTab('output');
+  const brief=document.getElementById('brief').value.trim();
+  log(`Starting ${state.active.size} renders...`,'info');
+
+  const targets=OUTPUTS.filter(o=>state.active.has(o.key));
+  let done=0;
+  for(let i=0;i<targets.length;i++){
+    await genOne(targets[i],brief,i,targets.length);
+    if(state.cards[targets[i].key].img) done++;
+    document.getElementById('tabCnt').textContent=`(${done}/${targets.length})`;
+  }
+  state.generating=false; btn.disabled=false; btn.textContent='⚡ Generate All Renders';
+  log('All renders complete!','success');
+}
+
+async function genOne(o,brief,idx,total){
+  setSt(o.key,'generating','GENERATING'); animPb(o.key);
+  log(`[${idx+1}/${total}] ${o.label}...`,'warn');
+  const prompt=`${state.style} architectural render. ${o.view}. PROJECT: ${brief||'Contemporary Thai architecture and landscape'}. Transform the provided sketch into this view, matching the mood reference style. Professional architectural visualization, 8K detail, no text, no watermark.`;
+
+  try{
+    const body={ prompt };
+    if(state.sketch) body.sketch={ mimeType:'image/jpeg', data:state.sketch.split(',')[1] };
+    if(state.mood) body.mood={ mimeType:'image/jpeg', data:state.mood.split(',')[1] };
+
+    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+
+    if(d.image){
+      const src=`data:${d.imageMime};base64,${d.image}`;
+      document.getElementById('body-'+o.key).innerHTML=`<img src="${src}">`;
+      state.cards[o.key].img=src;
+      setSt(o.key,'done','DONE'); donePb(o.key);
+      document.getElementById('dl-'+o.key).disabled=false;
+      log(`✓ ${o.label} rendered (${d.model})`,'success');
+    } else {
+      throw new Error(d.error||'No image returned');
+    }
+  }catch(err){
+    setSt(o.key,'error','ERROR'); errPb(o.key);
+    document.getElementById('body-'+o.key).innerHTML=`<div class="errbox"><b>Failed</b><br>${err.message}</div>`;
+    log(`✗ ${o.label}: ${err.message}`,'error');
+  }
+}
+
+function setSt(k,t,l){ const e=document.getElementById('st-'+k); e.className='st st-'+t; e.textContent=l; }
+function animPb(k){ document.getElementById('pb-'+k).innerHTML='<div class="anim"></div>'; }
+function donePb(k){ document.getElementById('pb-'+k).innerHTML='<div class="done"></div>'; }
+function errPb(k){ document.getElementById('pb-'+k).innerHTML='<div class="err"></div>'; }
+
+function dl(k){ const c=state.cards[k]; if(!c?.img)return; const a=document.createElement('a'); a.href=c.img; a.download=`khangkan-${k}.png`; a.click(); }
+function downloadAll(){ Object.values(state.cards).forEach(c=>{ if(c.img)dl(c.key); }); }
+function clearAll(){
+  document.getElementById('canvas').innerHTML='<div class="empty" id="empty"><div class="ei">🏗</div><div class="et">Awaiting Input</div><div class="es">Upload sketch · Write brief · Generate</div></div>';
+  state.cards={}; document.getElementById('logPanel').innerHTML=''; document.getElementById('tabCnt').textContent='';
+}
+
+initUI();
+checkAPI();
+</script>
+</body>
+</html>
