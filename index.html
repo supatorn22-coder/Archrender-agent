@@ -1,361 +1,526 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Khangkan Render Agent</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=Trirong:wght@300;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400&family=Trirong:wght@300;600&display=swap');
 
   :root {
-    --bg:#151210; --surface:#1e1a17; --surface2:#262018;
-    --border:#3a2e24; --accent:#AF5B33; --muted:#7a6a5a;
-    --cream:#e8ddd0; --text:#d4c5b0; --green:#5a8a5a; --radius:8px;
+    --bg:#151210; --surface:#1e1a17; --surface2:#262018; --border:#3a2e24;
+    --accent:#AF5B33; --accent-dim:#7a3f24; --cream:#e8ddd0; --muted:#7a6a5a;
+    --text:#d4c5b0; --green:#5a8a5a; --radius:8px;
   }
   * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  body { background:var(--bg); color:var(--text); font-family:'IBM Plex Sans Thai',sans-serif; }
+  body {
+    background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans Thai',sans-serif;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
   ::-webkit-scrollbar { width:4px; height:4px; }
   ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
 
   /* HEADER */
   header {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:14px 18px; border-bottom:1px solid var(--border); background:var(--surface);
-    position:sticky; top:0; z-index:50;
+    padding:14px 18px; border-bottom:1px solid var(--border);
+    background:var(--surface); position:sticky; top:0; z-index:20;
   }
-  .logo { font-family:'Trirong',serif; font-weight:600; font-size:1rem; color:var(--cream); letter-spacing:0.03em; }
+  .logo {
+    font-family:'Trirong',serif; font-weight:600; font-size:1.15rem;
+    color:var(--cream); letter-spacing:0.02em;
+  }
   .logo span { color:var(--accent); }
-  .badge { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--muted); border:1px solid var(--border); padding:3px 9px; border-radius:20px; }
 
-  /* TABS — mobile only */
-  .tabs { display:none; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:53px; z-index:49; }
-  .tab { flex:1; padding:13px; text-align:center; font-size:0.8rem; color:var(--muted); border-bottom:2px solid transparent; cursor:pointer; font-weight:500; }
+  /* TABS */
+  .tabs {
+    display:flex; background:var(--surface);
+    border-bottom:1px solid var(--border);
+    position:sticky; top:53px; z-index:20;
+  }
+  .tab {
+    flex:1; padding:14px; text-align:center; cursor:pointer;
+    font-size:0.92rem; font-weight:500; color:var(--muted);
+    border-bottom:2px solid transparent; transition:all 0.2s;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+  }
   .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .tab .cnt { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--green); margin-left:4px; }
+  .tab .count { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--muted); }
 
-  /* LAYOUT */
-  .app { display:flex; min-height:calc(100vh - 53px); }
-  .panel-input { width:340px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); overflow-y:auto; }
-  .panel-output { flex:1; display:flex; flex-direction:column; background:var(--bg); }
+  /* PANELS */
+  .panel { display:none; flex:1; overflow-y:auto; padding:16px; }
+  .panel.active { display:block; }
 
-  .label { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; letter-spacing:0.14em; color:var(--muted); text-transform:uppercase; padding:14px 16px 6px; }
+  .section-label {
+    font-family:'IBM Plex Mono',monospace; font-size:0.62rem;
+    letter-spacing:0.14em; color:var(--muted); text-transform:uppercase;
+    margin:18px 0 8px; padding-left:2px;
+  }
+  .section-label:first-child { margin-top:0; }
 
   /* UPLOAD */
-  .upload { margin:0 14px 12px; border:1.5px dashed var(--border); border-radius:var(--radius); padding:14px 10px; text-align:center; cursor:pointer; background:var(--surface2); position:relative; transition:.2s; }
-  .upload.drag { border-color:var(--accent); background:#1f1610; }
-  .upload input { position:absolute; inset:0; opacity:0; cursor:pointer; }
-  .upload .ic { font-size:1.3rem; margin-bottom:4px; }
-  .upload .ti { font-size:0.74rem; color:var(--cream); font-weight:500; }
-  .upload .su { font-size:0.62rem; color:var(--muted); margin-top:2px; }
-  .upload img { width:100%; max-height:130px; object-fit:cover; border-radius:5px; }
-  .upload .ok { font-size:0.62rem; color:var(--green); margin-top:5px; font-family:'IBM Plex Mono',monospace; }
-
-  textarea {
-    width:calc(100% - 28px); margin:0 14px 12px; background:var(--surface2); border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text); font-family:'IBM Plex Sans Thai',sans-serif;
-    font-size:0.78rem; padding:11px 12px; resize:vertical; min-height:84px; line-height:1.6;
+  .upload-zone {
+    border:1.5px dashed var(--border); border-radius:var(--radius);
+    padding:18px 12px; text-align:center; cursor:pointer;
+    background:var(--surface2); position:relative; transition:all 0.2s;
   }
-  textarea:focus { outline:none; border-color:var(--accent); }
-  textarea::placeholder { color:var(--muted); }
+  .upload-zone.drag { border-color:var(--accent); background:#1f1610; }
+  .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .upload-icon { font-size:1.6rem; margin-bottom:6px; }
+  .upload-title { font-size:0.85rem; color:var(--cream); font-weight:500; }
+  .upload-sub { font-size:0.7rem; color:var(--muted); margin-top:3px; }
+  .upload-preview { width:100%; border-radius:6px; margin-top:4px; max-height:200px; object-fit:cover; display:block; }
+  .upload-ok { font-size:0.7rem; color:var(--green); margin-top:6px; font-family:'IBM Plex Mono',monospace; }
 
-  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:0 14px 12px; }
-  .chip { font-size:0.66rem; padding:5px 11px; border-radius:20px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); cursor:pointer; transition:.2s; }
+  /* INPUTS */
+  textarea, input[type=password], input[type=text] {
+    width:100%; background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--text);
+    font-family:'IBM Plex Sans Thai',sans-serif; font-size:0.88rem;
+    padding:12px 14px; transition:border-color 0.2s;
+  }
+  textarea { resize:vertical; min-height:90px; line-height:1.6; }
+  input[type=password], input[type=text] { font-family:'IBM Plex Mono',monospace; font-size:0.8rem; }
+  textarea:focus, input:focus { outline:none; border-color:var(--accent); }
+  textarea::placeholder, input::placeholder { color:var(--muted); }
+
+  .api-row { display:flex; gap:8px; }
+  .eye-btn {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); color:var(--muted); cursor:pointer;
+    padding:0 14px; font-size:1rem;
+  }
+
+  /* STYLE CHIPS */
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip {
+    font-size:0.78rem; padding:7px 14px; border-radius:20px;
+    border:1px solid var(--border); cursor:pointer; color:var(--muted);
+    background:var(--surface2); transition:all 0.2s;
+  }
   .chip.active { border-color:var(--accent); color:var(--accent); background:#2a1a10; }
 
-  .outputs { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:0 14px 14px; }
-  .opt { display:flex; align-items:center; gap:7px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:9px 10px; cursor:pointer; transition:.2s; }
-  .opt.active { border-color:var(--accent); background:#2a1a10; }
-  .opt .n { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--accent); }
-  .opt .nm { font-size:0.7rem; color:var(--cream); flex:1; }
-
-  .genbtn { display:flex; align-items:center; justify-content:center; gap:8px; margin:4px 14px 18px; width:calc(100% - 28px); padding:14px; background:var(--accent); border:none; border-radius:var(--radius); color:#fff; font-family:'IBM Plex Sans Thai',sans-serif; font-size:0.85rem; font-weight:600; cursor:pointer; transition:.2s; }
-  .genbtn:active { transform:scale(.98); }
-  .genbtn:disabled { background:#7a3f24; cursor:not-allowed; }
-
-  /* OUTPUT */
-  .toolbar { display:flex; align-items:center; justify-content:space-between; padding:11px 18px; border-bottom:1px solid var(--border); background:var(--surface); }
-  .toolbar .t { font-family:'IBM Plex Mono',monospace; font-size:0.64rem; color:var(--muted); letter-spacing:0.1em; }
-  .toolbar .actions { display:flex; gap:8px; }
-  .ibtn { background:var(--surface2); border:1px solid var(--border); border-radius:5px; color:var(--muted); cursor:pointer; padding:6px 11px; font-size:0.68rem; }
-  .ibtn:active { color:var(--cream); }
-
-  .canvas { flex:1; overflow-y:auto; padding:16px; display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:14px; align-content:start; }
-
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-  .ch { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--border); }
-  .ch .num { font-family:'IBM Plex Mono',monospace; font-size:0.58rem; color:var(--accent); background:#2a1a10; padding:2px 6px; border-radius:3px; }
-  .ch .ti { font-size:0.74rem; color:var(--cream); font-weight:500; flex:1; }
-  .ch .st { font-size:0.6rem; font-family:'IBM Plex Mono',monospace; }
-  .st-pending { color:var(--muted); } .st-generating { color:#c8a84b; } .st-done { color:var(--green); } .st-error { color:#c45a5a; }
-
-  .pbar { height:2px; background:var(--border); position:relative; overflow:hidden; }
-  .pbar .anim { position:absolute; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:sh 1.5s infinite; }
-  @keyframes sh { 0%{left:-40%} 100%{left:140%} }
-  .pbar .done { height:100%; width:100%; background:var(--green); }
-  .pbar .err { height:100%; width:100%; background:#c45a5a; }
-
-  .cbody { background:var(--surface2); min-height:200px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .cbody img { width:100%; display:block; }
-  .ph { display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--border); }
-  .ph .pi { font-size:1.8rem; } .ph .pt { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; letter-spacing:0.08em; }
-  .errbox { padding:14px; font-size:0.68rem; color:#c45a5a; font-family:'IBM Plex Mono',monospace; line-height:1.6; }
-
-  .cfoot { padding:8px 14px; border-top:1px solid var(--border); display:flex; gap:6px; }
-  .dlbtn { flex:1; font-size:0.66rem; padding:5px 8px; background:#2a1a10; border:1px solid var(--accent); border-radius:4px; color:var(--accent); cursor:pointer; font-family:'IBM Plex Mono',monospace; }
-  .dlbtn:disabled { opacity:.3; cursor:not-allowed; border-color:var(--border); color:var(--muted); }
-
-  .empty { grid-column:1/-1; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:340px; gap:12px; color:var(--muted); }
-  .empty .ei { font-size:3rem; opacity:.25; } .empty .et { font-family:'Trirong',serif; font-size:1rem; color:var(--border); } .empty .es { font-family:'IBM Plex Mono',monospace; font-size:0.64rem; letter-spacing:0.08em; }
-
-  .log { border-top:1px solid var(--border); background:var(--surface); max-height:110px; overflow-y:auto; padding:7px 16px; }
-  .logline { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; padding:1px 0; line-height:1.6; }
-  .li-info{color:var(--muted)} .li-success{color:var(--green)} .li-warn{color:#c8a84b} .li-error{color:#c45a5a}
-
-  /* MOBILE */
-  @media (max-width:768px) {
-    .tabs { display:flex; }
-    .panel-input { width:100%; border-right:none; display:none; }
-    .panel-output { display:none; }
-    .panel-input.show, .panel-output.show { display:flex; flex-direction:column; }
-    .panel-input.show { display:block; }
-    .canvas { grid-template-columns:1fr; padding:14px; }
-    .badge { display:none; }
+  /* OUTPUT TOGGLE GRID */
+  .out-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .out-item {
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:var(--radius); padding:11px 12px; cursor:pointer;
+    transition:all 0.2s; user-select:none;
   }
+  .out-item.active { border-color:var(--accent); background:#2a1a10; }
+  .out-item .num { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--accent); }
+  .out-item .name { font-size:0.8rem; color:var(--cream); flex:1; }
+  .out-item .ic { font-size:0.85rem; }
+
+  /* GENERATE BUTTON */
+  .gen-btn {
+    width:100%; background:var(--accent); color:#fff; border:none;
+    border-radius:var(--radius); padding:16px;
+    font-family:'IBM Plex Sans Thai',sans-serif; font-size:0.95rem;
+    font-weight:600; cursor:pointer; margin-top:20px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:background 0.2s;
+  }
+  .gen-btn:active { background:#c46a3d; }
+  .gen-btn:disabled { background:var(--accent-dim); }
+
+  /* OUTPUT TOOLBAR */
+  .out-toolbar {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .out-toolbar-title { font-family:'IBM Plex Mono',monospace; font-size:0.66rem; color:var(--muted); letter-spacing:0.1em; }
+  .out-actions { display:flex; gap:8px; }
+  .icon-btn {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:6px; color:var(--muted); cursor:pointer;
+    padding:7px 12px; font-size:0.74rem;
+  }
+
+  /* RENDER CARD */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:14px; }
+  .card-head { display:flex; align-items:center; gap:9px; padding:12px 14px; border-bottom:1px solid var(--border); }
+  .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; color:var(--accent); background:#2a1a10; padding:3px 7px; border-radius:3px; }
+  .card-title { font-size:0.88rem; color:var(--cream); font-weight:500; flex:1; }
+  .card-status { font-size:0.62rem; font-family:'IBM Plex Mono',monospace; }
+  .st-pending { color:var(--muted); } .st-generating { color:#c8a84b; }
+  .st-done { color:var(--green); } .st-error { color:#c45a5a; }
+
+  .progress { height:2px; background:var(--border); overflow:hidden; position:relative; }
+  .progress-shimmer { position:absolute; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:shimmer 1.4s infinite; }
+  @keyframes shimmer { 0%{left:-40%} 100%{left:140%} }
+  .progress-done { height:100%; width:100%; background:var(--green); }
+  .progress-err { height:100%; width:100%; background:#c45a5a; }
+
+  .card-body { background:var(--surface2); min-height:160px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .card-body img { width:100%; height:auto; display:block; }
+  .card-msg { padding:18px; font-size:0.78rem; font-family:'IBM Plex Mono',monospace; line-height:1.7; align-self:flex-start; width:100%; }
+  .card-foot { padding:10px 14px; border-top:1px solid var(--border); }
+  .dl-btn { width:100%; background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); cursor:pointer; padding:9px; font-size:0.74rem; }
+  .dl-btn:disabled { opacity:0.3; }
+
+  .empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:300px; gap:12px; color:var(--muted); }
+  .empty-icon { font-size:3rem; opacity:0.25; }
+  .empty-title { font-family:'Trirong',serif; font-size:1.1rem; color:var(--border); }
+  .empty-sub { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; letter-spacing:0.08em; }
+
+  /* LOG */
+  .log { background:#0f0d0b; border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-top:14px; max-height:160px; overflow-y:auto; }
+  .log-line { font-family:'IBM Plex Mono',monospace; font-size:0.66rem; padding:2px 0; line-height:1.6; }
+  .lg-info{color:var(--muted)} .lg-success{color:var(--green)} .lg-warn{color:#c8a84b} .lg-error{color:#c45a5a}
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">khangkan <span>·</span> render agent</div>
-  <div class="badge" id="apiStatus">CHECKING API…</div>
 </header>
 
 <div class="tabs">
   <div class="tab active" id="tabInput" onclick="switchTab('input')">⚙️ Input</div>
-  <div class="tab" id="tabOutput" onclick="switchTab('output')">🖼 Output<span class="cnt" id="tabCnt"></span></div>
+  <div class="tab" id="tabOutput" onclick="switchTab('output')">🖼 Output <span class="count" id="tabCount">(0/7)</span></div>
 </div>
 
-<div class="app">
-  <!-- INPUT -->
-  <div class="panel-input show" id="panelInput">
-    <div class="label">Sketch / Drawing Input</div>
-    <div class="upload" id="zSketch">
-      <input type="file" accept="image/*" onchange="loadImg(event,'sketch')">
-      <div id="sketchEmpty"><div class="ic">📐</div><div class="ti">Drop Sketch or Plan</div><div class="su">Floor plan · Perspective · Section</div></div>
-      <img id="sketchPrev" style="display:none">
-      <div class="ok" id="sketchOk" style="display:none">Sketch loaded ✓</div>
-    </div>
-
-    <div class="label">Reference Mood Image</div>
-    <div class="upload" id="zMood">
-      <input type="file" accept="image/*" onchange="loadImg(event,'mood')">
-      <div id="moodEmpty"><div class="ic">🎨</div><div class="ti">Drop Mood Reference</div><div class="su">Style · Material · Atmosphere</div></div>
-      <img id="moodPrev" style="display:none">
-      <div class="ok" id="moodOk" style="display:none">Mood ref loaded ✓</div>
-    </div>
-
-    <div class="label">Design Brief</div>
-    <textarea id="brief" placeholder="อธิบายโปรเจกต์...&#10;e.g. Thai contemporary house, teak wood, split skillion roof, tropical garden, warm lighting..."></textarea>
-
-    <div class="label">Render Style</div>
-    <div class="chips" id="styleChips"></div>
-
-    <div class="label">Output Views</div>
-    <div class="outputs" id="outputGrid"></div>
-
-    <button class="genbtn" id="genBtn" onclick="generate()">⚡ Generate All Renders</button>
+<!-- INPUT PANEL -->
+<div class="panel active" id="panelInput">
+  <div class="section-label">Gemini API Key</div>
+  <div class="api-row">
+    <input type="password" id="apiKey" placeholder="AIza... your Gemini API key" />
+    <button class="eye-btn" onclick="toggleKey()">👁</button>
   </div>
 
-  <!-- OUTPUT -->
-  <div class="panel-output" id="panelOutput">
-    <div class="toolbar">
-      <span class="t">RENDER OUTPUT BOARD</span>
-      <div class="actions">
-        <button class="ibtn" onclick="downloadAll()">⬇ All</button>
-        <button class="ibtn" onclick="clearAll()">✕ Clear</button>
-      </div>
+  <div class="section-label">Sketch / Drawing Input</div>
+  <div class="upload-zone" id="sketchZone"
+       ondragover="dragOver(event,'sketchZone')" ondragleave="dragLeave('sketchZone')" ondrop="dropFile(event,'sketch')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketch')">
+    <div id="sketchEmpty">
+      <div class="upload-icon">📐</div>
+      <div class="upload-title">Drop Sketch or Plan</div>
+      <div class="upload-sub">Floor plan · Perspective · Section · Elevation</div>
     </div>
-    <div class="canvas" id="canvas">
-      <div class="empty" id="empty">
-        <div class="ei">🏗</div><div class="et">Awaiting Input</div><div class="es">Upload sketch · Write brief · Generate</div>
-      </div>
+    <img id="sketchPrev" class="upload-preview" style="display:none">
+    <div id="sketchOk" class="upload-ok" style="display:none">Sketch loaded ✓</div>
+  </div>
+
+  <div class="section-label">Reference Mood Image</div>
+  <div class="upload-zone" id="moodZone"
+       ondragover="dragOver(event,'moodZone')" ondragleave="dragLeave('moodZone')" ondrop="dropFile(event,'mood')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'mood')">
+    <div id="moodEmpty">
+      <div class="upload-icon">🎨</div>
+      <div class="upload-title">Drop Mood Reference</div>
+      <div class="upload-sub">Style · Material · Atmosphere</div>
     </div>
-    <div class="log" id="logPanel"></div>
+    <img id="moodPrev" class="upload-preview" style="display:none">
+    <div id="moodOk" class="upload-ok" style="display:none">Mood ref loaded ✓</div>
+  </div>
+
+  <div class="section-label">Design Brief</div>
+  <textarea id="brief" placeholder="Describe the project...&#10;e.g. Thai contemporary house, teak wood cladding, split skillion roof, tropical garden, warm natural lighting"></textarea>
+
+  <div class="section-label">Render Style</div>
+  <div class="chips" id="styleChips">
+    <div class="chip active" data-style="Photorealistic CGI">Photorealistic</div>
+    <div class="chip" data-style="Architectural watercolor painting">Watercolor</div>
+    <div class="chip" data-style="Pencil hand drawing rendering">Pencil</div>
+    <div class="chip" data-style="Clean architectural line art sketch">Sketch Art</div>
+    <div class="chip" data-style="Night cinematic render with artificial lighting">Night</div>
+  </div>
+
+  <div class="section-label">Output Views</div>
+  <div class="out-grid" id="outGrid"></div>
+
+  <button class="gen-btn" id="genBtn" onclick="startGen()">⚡ Generate All Renders</button>
+
+  <div class="log" id="logInput"></div>
+</div>
+
+<!-- OUTPUT PANEL -->
+<div class="panel" id="panelOutput">
+  <div class="out-toolbar">
+    <span class="out-toolbar-title">RENDER OUTPUT BOARD</span>
+    <div class="out-actions">
+      <button class="icon-btn" onclick="downloadAll()">⬇ All</button>
+      <button class="icon-btn" onclick="clearAll()">✕ Clear</button>
+    </div>
+  </div>
+  <div id="cards">
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">🏗</div>
+      <div class="empty-title">Awaiting Input</div>
+      <div class="empty-sub">Upload sketch · Write brief · Generate</div>
+    </div>
   </div>
 </div>
 
 <script>
+// ── CONFIG ──
 const OUTPUTS = [
-  {key:"plan",num:"01",label:"Plan View",icon:"🗺",view:"top-down architectural plan view, orthographic bird's eye, layout, circulation, landscape zones"},
-  {key:"perspective",num:"02",label:"Perspective",icon:"🏠",view:"eye-level 3D perspective, golden hour cinematic lighting, lush vegetation, people for scale"},
-  {key:"section",num:"03",label:"Section",icon:"✂️",view:"cross-section cut, interior spaces, structure, ceiling heights, landscape grading"},
-  {key:"elevation",num:"04",label:"Elevation",icon:"📏",view:"front elevation, facade, materials, openings, landscape foreground, shadow study"},
-  {key:"blowup",num:"05",label:"Blowup Detail",icon:"🔍",view:"close-up construction detail 1:10, material connections, joinery, teak wood concrete steel"},
-  {key:"material",num:"06",label:"Material Board",icon:"🪵",view:"flat lay material palette, wood stone concrete metal fabric plant textures, studio photography"},
-  {key:"planting",num:"07",label:"Planting Plan",icon:"🌿",view:"top-down planting plan, species layout, canopy trees, shrubs, ground cover, tropical Thai garden"},
+  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"top-down architectural plan view, bird's eye orthographic projection showing layout, spaces, circulation paths, landscape zones" },
+  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"eye-level 3D perspective, golden hour cinematic lighting, lush realistic vegetation, people for scale, dramatic composition" },
+  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"architectural cross-section cut showing interior spaces, structural elements, ceiling heights, floor levels, landscape grading" },
+  { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"front elevation showing facade, materials, openings, vertical proportions, landscape foreground, sky background" },
+  { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"close-up construction detail at 1:10 scale showing material connections, joinery, teak wood concrete steel junctions, ultra high detail" },
+  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"flat lay material palette board showing wood samples, stone, concrete finishes, metal details, plant textures, studio photography" },
+  { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"top-down landscape planting plan showing plant species layout, canopy trees, shrubs, ground cover, tropical Thai garden design" },
 ];
-const STYLES = ["Photorealistic CGI","Architectural Watercolor","Pencil Rendering","Sketch Line Art","Night Cinematic"];
 
-const state = { sketch:null, mood:null, style:"Photorealistic CGI", active:new Set(OUTPUTS.map(o=>o.key)), cards:{}, generating:false };
+const state = {
+  sketch:null, mood:null, style:'Photorealistic CGI',
+  active:new Set(OUTPUTS.map(o=>o.key)), cards:{}, generating:false
+};
 
-// INIT UI
-function initUI(){
-  const sc = document.getElementById('styleChips');
-  STYLES.forEach(s=>{
-    const el=document.createElement('div'); el.className='chip'+(s===state.style?' active':''); el.textContent=s;
-    el.onclick=()=>{ state.style=s; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); el.classList.add('active'); };
-    sc.appendChild(el);
+// ── INIT ──
+function init() {
+  const grid = document.getElementById('outGrid');
+  OUTPUTS.forEach(o => {
+    const el = document.createElement('div');
+    el.className = 'out-item active';
+    el.dataset.key = o.key;
+    el.innerHTML = `<span class="num">${o.num}</span><span class="name">${o.label}</span><span class="ic">${o.ic}</span>`;
+    el.onclick = () => toggleOut(o.key, el);
+    grid.appendChild(el);
   });
-  const og = document.getElementById('outputGrid');
-  OUTPUTS.forEach(o=>{
-    const el=document.createElement('div'); el.className='opt active'; el.dataset.key=o.key;
-    el.innerHTML=`<span class="n">${o.num}</span><span class="nm">${o.label}</span><span>${o.icon}</span>`;
-    el.onclick=()=>{ if(state.active.has(o.key)){state.active.delete(o.key);el.classList.remove('active');}else{state.active.add(o.key);el.classList.add('active');} };
-    og.appendChild(el);
-  });
-  // drag-drop
-  ['sketch','mood'].forEach(t=>{
-    const z=document.getElementById(t==='sketch'?'zSketch':'zMood');
-    z.ondragover=e=>{e.preventDefault();z.classList.add('drag');};
-    z.ondragleave=()=>z.classList.remove('drag');
-    z.ondrop=e=>{e.preventDefault();z.classList.remove('drag');loadImg({target:{files:e.dataTransfer.files}},t);};
+  document.querySelectorAll('.chip').forEach(c => {
+    c.onclick = () => {
+      document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      state.style = c.dataset.style;
+    };
   });
 }
 
-// API health check
-async function checkAPI(){
-  const st=document.getElementById('apiStatus');
-  try{
-    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
-    const d=await r.json();
-    if(d.error && d.error.includes('not configured')){ st.textContent='⚠ API KEY MISSING'; st.style.color='#c45a5a'; }
-    else { st.textContent='GEMINI · CONNECTED'; st.style.color='var(--green)'; }
-  }catch(e){ st.textContent='⚠ NO BACKEND'; st.style.color='#c45a5a'; }
+// ── TABS ──
+function switchTab(t) {
+  document.getElementById('tabInput').classList.toggle('active', t==='input');
+  document.getElementById('tabOutput').classList.toggle('active', t==='output');
+  document.getElementById('panelInput').classList.toggle('active', t==='input');
+  document.getElementById('panelOutput').classList.toggle('active', t==='output');
 }
 
-// resize+encode
-function resizeImg(file,maxDim=1024){return new Promise(res=>{
-  const r=new FileReader();
-  r.onload=e=>{const img=new Image();img.onload=()=>{
-    let{width:w,height:h}=img;
-    if(w>maxDim||h>maxDim){ if(w>h){h=Math.round(h*maxDim/w);w=maxDim;}else{w=Math.round(w*maxDim/h);h=maxDim;} }
-    const c=document.createElement('canvas');c.width=w;c.height=h;
-    const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
-    res(c.toDataURL('image/jpeg',0.85));
-  };img.onerror=()=>res(e.target.result);img.src=e.target.result;};
-  r.readAsDataURL(file);
-});}
+// ── IMAGE LOAD (with resize → clean base64) ──
+function loadImg(e, type) { processFile(e.target.files[0], type); }
 
-async function loadImg(ev,type){
-  const f=ev.target.files[0]; if(!f)return;
-  const src=await resizeImg(f);
-  if(type==='sketch'){ state.sketch=src; show('sketch',src); }
-  else { state.mood=src; show('mood',src); }
-  log(`${type} loaded: ${f.name}`,'success');
-}
-function show(t,src){
-  document.getElementById(t+'Prev').src=src;
-  document.getElementById(t+'Prev').style.display='block';
-  document.getElementById(t+'Empty').style.display='none';
-  document.getElementById(t+'Ok').style.display='block';
+function processFile(file, type) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1024;
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) { height = Math.round(height*maxDim/width); width = maxDim; }
+        else { width = Math.round(width*maxDim/height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,width,height);
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const base64 = dataUrl.split(',')[1]; // CLEAN base64, no prefix
+
+      if (type === 'sketch') {
+        state.sketch = base64;
+        document.getElementById('sketchPrev').src = dataUrl;
+        document.getElementById('sketchPrev').style.display = 'block';
+        document.getElementById('sketchEmpty').style.display = 'none';
+        document.getElementById('sketchOk').style.display = 'block';
+      } else {
+        state.mood = base64;
+        document.getElementById('moodPrev').src = dataUrl;
+        document.getElementById('moodPrev').style.display = 'block';
+        document.getElementById('moodEmpty').style.display = 'none';
+        document.getElementById('moodOk').style.display = 'block';
+      }
+      log(`${type} loaded: ${file.name}`, 'success');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
-function log(msg,type='info'){
-  const p=document.getElementById('logPanel');
-  const l=document.createElement('div'); l.className='logline li-'+type;
-  const time=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  l.textContent=`[${time}] ${msg}`; p.appendChild(l); p.scrollTop=p.scrollHeight;
+// ── DRAG ──
+function dragOver(e,id){ e.preventDefault(); document.getElementById(id).classList.add('drag'); }
+function dragLeave(id){ document.getElementById(id).classList.remove('drag'); }
+function dropFile(e,type){ e.preventDefault(); const id=type==='sketch'?'sketchZone':'moodZone'; document.getElementById(id).classList.remove('drag'); processFile(e.dataTransfer.files[0], type); }
+
+// ── TOGGLES ──
+function toggleOut(key, el) {
+  if (state.active.has(key)) { state.active.delete(key); el.classList.remove('active'); }
+  else { state.active.add(key); el.classList.add('active'); }
+  updateCount();
+}
+function toggleKey() {
+  const el = document.getElementById('apiKey');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+function updateCount() {
+  const done = Object.values(state.cards).filter(c=>c.status==='done').length;
+  document.getElementById('tabCount').textContent = `(${done}/${state.active.size})`;
 }
 
-function switchTab(t){
-  document.getElementById('tabInput').classList.toggle('active',t==='input');
-  document.getElementById('tabOutput').classList.toggle('active',t==='output');
-  document.getElementById('panelInput').classList.toggle('show',t==='input');
-  document.getElementById('panelOutput').classList.toggle('show',t==='output');
+// ── LOG ──
+function log(msg, type='info') {
+  const line = `<div class="log-line lg-${type}">[${new Date().toLocaleTimeString('en-GB')}] ${msg}</div>`;
+  const el = document.getElementById('logInput');
+  el.insertAdjacentHTML('beforeend', line);
+  el.scrollTop = el.scrollHeight;
 }
 
-function buildCards(){
-  const c=document.getElementById('canvas');
-  const e=document.getElementById('empty'); if(e)e.remove();
-  c.innerHTML='';
-  OUTPUTS.filter(o=>state.active.has(o.key)).forEach(o=>{
-    const card=document.createElement('div'); card.className='card'; card.id='card-'+o.key;
-    card.innerHTML=`
-      <div class="ch"><span class="num">${o.num}</span><span class="ti">${o.label}</span><span class="st st-pending" id="st-${o.key}">PENDING</span></div>
-      <div class="pbar" id="pb-${o.key}"></div>
-      <div class="cbody" id="body-${o.key}"><div class="ph"><div class="pi">⬜</div><div class="pt">AWAITING RENDER</div></div></div>
-      <div class="cfoot"><button class="dlbtn" id="dl-${o.key}" disabled onclick="dl('${o.key}')">↓ Download</button></div>`;
-    c.appendChild(card);
-    state.cards[o.key]={key:o.key,img:null};
+// ── BUILD CARDS ──
+function buildCards() {
+  const wrap = document.getElementById('cards');
+  wrap.innerHTML = '';
+  OUTPUTS.filter(o=>state.active.has(o.key)).forEach(o => {
+    wrap.insertAdjacentHTML('beforeend', `
+      <div class="card" id="card-${o.key}">
+        <div class="card-head">
+          <span class="card-num">${o.num}</span>
+          <span class="card-title">${o.label}</span>
+          <span class="card-status st-pending" id="status-${o.key}">PENDING</span>
+        </div>
+        <div class="progress" id="prog-${o.key}"></div>
+        <div class="card-body" id="body-${o.key}">
+          <div class="card-msg" style="color:var(--border);text-align:center">AWAITING RENDER</div>
+        </div>
+        <div class="card-foot">
+          <button class="dl-btn" id="dl-${o.key}" disabled onclick="downloadCard('${o.key}')">↓ Download</button>
+        </div>
+      </div>`);
+    state.cards[o.key] = { key:o.key, status:'pending', img:null };
   });
 }
 
-async function generate(){
-  if(state.generating)return;
-  if(!state.sketch && !document.getElementById('brief').value.trim()){ log('⚠ Add sketch or brief first','error'); return; }
-  if(state.active.size===0){ log('⚠ Select at least one output','error'); return; }
-  state.generating=true;
-  const btn=document.getElementById('genBtn'); btn.disabled=true; btn.textContent='⏳ Generating...';
+// ── GENERATE ──
+async function startGen() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const brief = document.getElementById('brief').value.trim();
+  if (!apiKey) { log('⚠ Enter your Gemini API key', 'error'); switchTab('input'); return; }
+  if (!brief && !state.sketch) { log('⚠ Add a sketch or brief', 'error'); return; }
+  if (state.active.size === 0) { log('⚠ Select at least one output', 'error'); return; }
+  if (state.generating) return;
+
+  state.generating = true;
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating...';
   buildCards();
-  if(window.innerWidth<=768) switchTab('output');
-  const brief=document.getElementById('brief').value.trim();
-  log(`Starting ${state.active.size} renders...`,'info');
+  switchTab('output');
+  log(`Starting ${state.active.size} renders · style: ${state.style}`, 'info');
 
-  const targets=OUTPUTS.filter(o=>state.active.has(o.key));
-  let done=0;
-  for(let i=0;i<targets.length;i++){
-    await genOne(targets[i],brief,i,targets.length);
-    if(state.cards[targets[i].key].img) done++;
-    document.getElementById('tabCnt').textContent=`(${done}/${targets.length})`;
+  const targets = OUTPUTS.filter(o=>state.active.has(o.key));
+  for (let i=0; i<targets.length; i++) {
+    log(`[${i+1}/${targets.length}] ${targets[i].label}...`, 'warn');
+    await genOne(targets[i], apiKey, brief);
+    if (i < targets.length-1) await delay(500);
   }
-  state.generating=false; btn.disabled=false; btn.textContent='⚡ Generate All Renders';
-  log('All renders complete!','success');
+
+  state.generating = false;
+  btn.disabled = false; btn.textContent = '⚡ Generate All Renders';
+  log('All renders complete!', 'success');
 }
 
-async function genOne(o,brief,idx,total){
-  setSt(o.key,'generating','GENERATING'); animPb(o.key);
-  log(`[${idx+1}/${total}] ${o.label}...`,'warn');
-  const prompt=`${state.style} architectural render. ${o.view}. PROJECT: ${brief||'Contemporary Thai architecture and landscape'}. Transform the provided sketch into this view, matching the mood reference style. Professional architectural visualization, 8K detail, no text, no watermark.`;
+async function genOne(cfg, apiKey, brief) {
+  setStatus(cfg.key, 'generating', 'GENERATING');
+  document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-shimmer"></div>';
 
-  try{
-    const body={ prompt };
-    if(state.sketch) body.sketch={ mimeType:'image/jpeg', data:state.sketch.split(',')[1] };
-    if(state.mood) body.mood={ mimeType:'image/jpeg', data:state.mood.split(',')[1] };
+  const promptText = `${state.style} architectural visualization. ${cfg.view}. Project: ${brief || 'Contemporary Thai architecture and landscape design, warm natural materials, minimalist aesthetic'}. Transform the provided sketch into this view while keeping the design intent. Match the mood, materials and atmosphere of the reference image. Professional architectural CGI quality, high detail, no text, no watermark.`;
 
-    const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();
+  // Build parts — text first, then images (clean base64)
+  const parts = [{ text: promptText }];
+  if (state.sketch) parts.push({ inline_data: { mime_type:'image/jpeg', data: state.sketch } });
+  if (state.mood)   parts.push({ inline_data: { mime_type:'image/jpeg', data: state.mood } });
 
-    if(d.image){
-      const src=`data:${d.imageMime};base64,${d.image}`;
-      document.getElementById('body-'+o.key).innerHTML=`<img src="${src}">`;
-      state.cards[o.key].img=src;
-      setSt(o.key,'done','DONE'); donePb(o.key);
-      document.getElementById('dl-'+o.key).disabled=false;
-      log(`✓ ${o.label} rendered (${d.model})`,'success');
-    } else {
-      throw new Error(d.error||'No image returned');
-    }
-  }catch(err){
-    setSt(o.key,'error','ERROR'); errPb(o.key);
-    document.getElementById('body-'+o.key).innerHTML=`<div class="errbox"><b>Failed</b><br>${err.message}</div>`;
-    log(`✗ ${o.label}: ${err.message}`,'error');
+  const MODELS = [
+    'gemini-2.5-flash-image',
+    'gemini-2.0-flash-exp-image-generation',
+    'gemini-2.0-flash-preview-image-generation',
+  ];
+
+  let data = null, lastErr = 'unknown';
+  for (const model of MODELS) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            contents:[{ role:'user', parts }],
+            generationConfig:{ responseModalities:['IMAGE','TEXT'], temperature:0.8 }
+          })
+        }
+      );
+      const d = await res.json();
+      if (d.error) { lastErr = `${model}: ${d.error.message}`; log(`  ✗ ${lastErr}`,'warn'); continue; }
+      data = d; log(`  ✓ ${model}`,'success'); break;
+    } catch(e) { lastErr = `${model}: ${e.message}`; log(`  ✗ ${lastErr}`,'warn'); }
+  }
+
+  if (!data) { showError(cfg.key, lastErr); return; }
+
+  // Extract image
+  let imgB64=null, imgMime='image/png', txt='';
+  const respParts = data.candidates?.[0]?.content?.parts || [];
+  for (const p of respParts) {
+    if (p.inlineData?.data) { imgB64=p.inlineData.data; imgMime=p.inlineData.mimeType||'image/png'; }
+    else if (p.inline_data?.data) { imgB64=p.inline_data.data; imgMime=p.inline_data.mime_type||'image/png'; }
+    else if (p.text) txt += p.text;
+  }
+
+  if (imgB64) {
+    const src = `data:${imgMime};base64,${imgB64}`;
+    document.getElementById(`body-${cfg.key}`).innerHTML = `<img src="${src}" alt="${cfg.label}">`;
+    state.cards[cfg.key].img = src;
+    state.cards[cfg.key].status = 'done';
+    setStatus(cfg.key, 'done', 'DONE');
+    document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-done"></div>';
+    document.getElementById(`dl-${cfg.key}`).disabled = false;
+    log(`✓ ${cfg.label} rendered`, 'success');
+    updateCount();
+  } else {
+    showError(cfg.key, txt || 'No image returned — your API key may not have image generation access. Enable it at aistudio.google.com');
   }
 }
 
-function setSt(k,t,l){ const e=document.getElementById('st-'+k); e.className='st st-'+t; e.textContent=l; }
-function animPb(k){ document.getElementById('pb-'+k).innerHTML='<div class="anim"></div>'; }
-function donePb(k){ document.getElementById('pb-'+k).innerHTML='<div class="done"></div>'; }
-function errPb(k){ document.getElementById('pb-'+k).innerHTML='<div class="err"></div>'; }
-
-function dl(k){ const c=state.cards[k]; if(!c?.img)return; const a=document.createElement('a'); a.href=c.img; a.download=`khangkan-${k}.png`; a.click(); }
-function downloadAll(){ Object.values(state.cards).forEach(c=>{ if(c.img)dl(c.key); }); }
-function clearAll(){
-  document.getElementById('canvas').innerHTML='<div class="empty" id="empty"><div class="ei">🏗</div><div class="et">Awaiting Input</div><div class="es">Upload sketch · Write brief · Generate</div></div>';
-  state.cards={}; document.getElementById('logPanel').innerHTML=''; document.getElementById('tabCnt').textContent='';
+function showError(key, msg) {
+  setStatus(key, 'error', 'ERROR');
+  document.getElementById(`prog-${key}`).innerHTML = '<div class="progress-err"></div>';
+  document.getElementById(`body-${key}`).innerHTML =
+    `<div class="card-msg" style="color:#c45a5a"><b>Failed</b><br>${msg}</div>`;
+  log(`✗ ${key}: ${msg}`, 'error');
 }
 
-initUI();
-checkAPI();
+function setStatus(key, type, label) {
+  const el = document.getElementById(`status-${key}`);
+  el.className = `card-status st-${type}`;
+  el.textContent = label;
+}
+
+// ── DOWNLOAD ──
+function downloadCard(key) {
+  const c = state.cards[key];
+  if (!c?.img) return;
+  const a = document.createElement('a');
+  a.href = c.img; a.download = `khangkan-${key}.png`; a.click();
+}
+function downloadAll() { Object.values(state.cards).forEach(c => c.img && downloadCard(c.key)); }
+function clearAll() {
+  state.cards = {};
+  document.getElementById('cards').innerHTML = `
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">🏗</div>
+      <div class="empty-title">Awaiting Input</div>
+      <div class="empty-sub">Upload sketch · Write brief · Generate</div>
+    </div>`;
+  updateCount();
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+init();
 </script>
 </body>
 </html>
