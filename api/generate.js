@@ -1,3 +1,7 @@
+// /api/generate.js — Vercel Serverless Function
+// Proxies image generation to Google Gemini, keeping the API key server-side.
+// Set GEMINI_API_KEY in Vercel → Project → Settings → Environment Variables.
+
 const MODELS = [
   'gemini-3-pro-image',
   'gemini-3-pro-image-preview',
@@ -6,8 +10,8 @@ const MODELS = [
   'gemini-2.5-flash-image',
 ];
 
-
 export default async function handler(req, res) {
+  // CORS (same-origin in production, but harmless to allow)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,11 +25,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Vercel parses JSON body automatically; fall back to manual parse if needed.
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { prompt, sketch, mood } = body || {};
 
     if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
+    // Sanitize base64: strip data-url prefix + any whitespace/newlines
     const clean = (b64) => {
       if (!b64 || typeof b64 !== 'string') return null;
       let s = b64.trim();
@@ -35,6 +41,7 @@ export default async function handler(req, res) {
     const sketchB64 = clean(sketch);
     const moodB64 = clean(mood);
 
+    // Build Gemini parts: text first, then images
     const parts = [{ text: prompt }];
     if (sketchB64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchB64 } });
     if (moodB64)   parts.push({ inline_data: { mime_type: 'image/jpeg', data: moodB64 } });
@@ -59,6 +66,7 @@ export default async function handler(req, res) {
 
         if (d.error) { lastErr = `${model}: ${d.error.message}`; continue; }
 
+        // Extract image + text from response
         let image = null, mime = 'image/png', text = '';
         const respParts = d.candidates?.[0]?.content?.parts || [];
         for (const p of respParts) {
@@ -70,10 +78,29 @@ export default async function handler(req, res) {
         if (image) {
           return res.status(200).json({ image, mime, text, model });
         }
+        // No image — keep last text as the error/explanation, try next model
         lastErr = text || `${model}: no image returned`;
       } catch (e) {
         lastErr = `${model}: ${e.message}`;
       }
+    }
+
+    // All models failed — fetch the list this key CAN access, to diagnose
+    try {
+      const lr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+      const ld = await lr.json();
+      const imageModels = (ld.models || [])
+        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => m.name.replace('models/', ''))
+        .filter(n => n.toLowerCase().includes('image'));
+      if (imageModels.length) {
+        lastErr += ` | Image models your key CAN use: ${imageModels.join(', ')}`;
+      } else {
+        const any = (ld.models || []).map(m => m.name.replace('models/', '')).slice(0, 8);
+        lastErr += ` | No image-capable models found. Your key has access to: ${any.join(', ') || 'none'}. Enable billing + image generation at aistudio.google.com`;
+      }
+    } catch (e) {
+      lastErr += ` | (could not list models: ${e.message})`;
     }
 
     return res.status(200).json({ error: lastErr });

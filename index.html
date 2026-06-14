@@ -169,6 +169,29 @@
   .log { background:#0f0d0b; border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-top:14px; max-height:160px; overflow-y:auto; }
   .log-line { font-family:'IBM Plex Mono',monospace; font-size:0.66rem; padding:2px 0; line-height:1.6; }
   .lg-info{color:var(--muted)} .lg-success{color:var(--green)} .lg-warn{color:#c8a84b} .lg-error{color:#c45a5a}
+  /* ── BOARD COMPOSER ── */
+  #panelBoard { display:none; flex-direction:column; height:100%; overflow:hidden; }
+  #panelBoard.active { display:flex; }
+  .board-controls { padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface); }
+  .board-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .board-lbl { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; min-width:54px; }
+  .board-select, .board-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:5px; color:var(--text); font-size:0.74rem; padding:6px 9px; font-family:'IBM Plex Sans Thai',sans-serif; }
+  .board-select:focus, .board-input:focus { outline:none; border-color:var(--accent); }
+  .board-hint { font-size:0.62rem; color:var(--muted); margin-top:3px; line-height:1.5; }
+  .board-wrap { flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; background:#0e0c0a; }
+  .board-canvas { position:relative; background:#fbfaf7; box-shadow:0 4px 30px rgba(0,0,0,0.5); flex-shrink:0; transform-origin:top center; }
+  .board-item { position:absolute; overflow:hidden; cursor:move; border:1px solid transparent; box-sizing:border-box; }
+  .board-item:hover { border-color:var(--accent); }
+  .board-item.selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(175,91,51,0.4); }
+  .board-item img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+  .board-item .resize-h { position:absolute; right:0; bottom:0; width:16px; height:16px; background:var(--accent); cursor:nwse-resize; border-radius:3px 0 0 0; opacity:0; }
+  .board-item:hover .resize-h, .board-item.selected .resize-h { opacity:0.9; }
+  .board-cap { position:absolute; left:0; bottom:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:8px; padding:2px 4px; font-family:'IBM Plex Mono',monospace; pointer-events:none; }
+  .board-text { position:absolute; cursor:move; color:#2a2a2a; font-family:'Trirong',serif; padding:2px; border:1px solid transparent; box-sizing:border-box; }
+  .board-text:hover { border-color:var(--accent); }
+  .board-text.selected { border-color:var(--accent); }
+  .board-text[contenteditable="true"] { outline:2px solid var(--accent); cursor:text; background:rgba(255,255,255,0.8); }
+  .board-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; gap:10px; color:#bbb; width:100%; }
 </style>
 </head>
 <body>
@@ -180,6 +203,7 @@
 <div class="tabs">
   <div class="tab active" id="tabInput" onclick="switchTab('input')">⚙️ Input</div>
   <div class="tab" id="tabOutput" onclick="switchTab('output')">🖼 Output <span class="count" id="tabCount">(0/7)</span></div>
+  <div class="tab" id="tabBoard" onclick="switchTab('board')">📐 Board</div>
 </div>
 
 <!-- INPUT PANEL -->
@@ -248,21 +272,60 @@
   </div>
 </div>
 
+<!-- BOARD PANEL -->
+<div class="panel" id="panelBoard">
+  <div class="out-toolbar">
+    <span class="out-toolbar-title">PRESENTATION BOARD</span>
+    <div class="out-actions">
+      <button class="icon-btn" onclick="autoLayout()">✨ Auto</button>
+      <button class="icon-btn" onclick="downloadBoardPNG()">⬇ PNG</button>
+      <button class="icon-btn" onclick="downloadSeparate()">⬇ แยกชิ้น</button>
+    </div>
+  </div>
+
+  <div class="board-controls">
+    <div class="board-row">
+      <span class="board-lbl">Layout</span>
+      <select id="boardTemplate" class="board-select" onchange="applyTemplate()">
+        <option value="portrait-hero">Portrait · Hero + Grid (ภาพ 1,4)</option>
+        <option value="portrait-full">Portrait · Full Board (ภาพ 3)</option>
+        <option value="landscape-pro">Landscape · Pro Board (ภาพ 2)</option>
+        <option value="grid-simple">Simple Grid</option>
+      </select>
+    </div>
+    <div class="board-row">
+      <span class="board-lbl">Title</span>
+      <input id="boardTitle" class="board-input" value="ekkapong" oninput="renderBoardTexts()">
+    </div>
+    <div class="board-row">
+      <span class="board-lbl">Subtitle</span>
+      <input id="boardSub" class="board-input" value="Architecture · Landscape · Interior" oninput="renderBoardTexts()">
+    </div>
+    <div class="board-hint">💡 ลากภาพเพื่อย้าย · ลากมุมขวาล่างเพื่อปรับขนาด · ดับเบิลคลิกข้อความเพื่อแก้</div>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <div class="board-canvas" id="boardCanvas"></div>
+  </div>
+</div>
+
 <script>
 // ── CONFIG ──
 const OUTPUTS = [
-  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"top-down architectural plan view, bird's eye orthographic projection showing layout, spaces, circulation paths, landscape zones" },
-  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"eye-level 3D perspective, golden hour cinematic lighting, lush realistic vegetation, people for scale, dramatic composition" },
-  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"architectural cross-section cut showing interior spaces, structural elements, ceiling heights, floor levels, landscape grading" },
-  { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"front elevation showing facade, materials, openings, vertical proportions, landscape foreground, sky background" },
-  { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"close-up construction detail at 1:10 scale showing material connections, joinery, teak wood concrete steel junctions, ultra high detail" },
-  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"flat lay material palette board showing wood samples, stone, concrete finishes, metal details, plant textures, studio photography" },
-  { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"top-down landscape planting plan showing plant species layout, canopy trees, shrubs, ground cover, tropical Thai garden design" },
+  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"a colored architectural FLOOR PLAN, top-down orthographic view. Render in soft muted watercolor-and-wash architectural presentation style: warm wood-toned floors, green landscaping with native trees drawn as circular canopies, natural stone paths, water features. Show furniture layout from above, room divisions, courtyard, terraces and garden. Include thin dimension lines and a clean technical drawing aesthetic. Muted earthy palette, professional landscape-architecture plan rendering. NOT a 3D view, NOT photorealistic — a flat 2D architectural plan drawing." },
+  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"an eye-level architectural PERSPECTIVE that blends a photorealistic render on the left/center with a fading hand-drawn line-sketch overlay toward the edges (half-render half-blueprint sketch hybrid). Lush tropical planting, timber structure, raised platform, water pond with stepping walkway, natural daylight. Architectural competition presentation style, realistic materials fading into technical pen line work at the top and sides. Front three-quarter view angle." },
+  { key:'perspective2',num:'2b', label:'Perspective · Angle 2', ic:'🏠', view:"a different eye-level architectural PERSPECTIVE from the OPPOSITE/rear three-quarter angle, photorealistic render blended with a fading hand-drawn sketch overlay at the edges. Lush tropical planting, timber and concrete structure, raised platform, golden-hour daylight. Architectural competition presentation hybrid style." },
+  { key:'perspective3',num:'2c', label:'Perspective · Aerial', ic:'🏠', view:"a slightly elevated bird's-eye architectural PERSPECTIVE looking down at the whole building and its garden context, photorealistic render blended with faint technical sketch lines at the edges. Shows the full site, walkways, water features, planting and surrounding trees. Architectural presentation hybrid style." },
+  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"an architectural SECTION drawing (vertical cut through the building), soft watercolor-and-pencil presentation style on white background. Show the skillion/slanted roof profile, interior furniture in section, structural columns and footings below ground line, ceiling heights. Surround with delicately drawn trees in muted sage-green watercolor. Thin technical dimension lines. Looks like a hand-rendered architecture section, NOT photorealistic, NOT 3D." },
+  { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"an architectural ELEVATION drawing (flat orthographic facade view) in hand-rendered colored-pencil-and-watercolor presentation style on white background. Show facade materials, openings, balconies, vertical proportions, abundant green planting and climbing greenery cascading over the building. Soft natural colors, light shadows. A flat 2D elevation drawing, NOT a 3D perspective, NOT photorealistic." },
+  { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"an architectural DETAIL SECTION diagram (blow-up technical drawing) in clean fine-line drafting style on light background. Show a vertical wall/roof construction detail with layered components: roof structure, wood ceiling, operable wall track, wood panel, concrete floor, structural slab, footing. Include thin leader lines pointing to each labeled component on the right side, with hatching for materials. Precise technical construction-detail aesthetic, like an architect's working drawing." },
+  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"a MATERIAL PALETTE presentation board on clean off-white background. Show 5-6 circular material swatch samples arranged vertically, each with a short label: Exposed Concrete, Natural Stone, Warm Timber, Glass, Metal Accents, Greenery. Each swatch is a realistic circular texture sample. Minimal elegant architectural material board layout, studio-lit textures, serif heading 'MATERIAL PALETTE'." },
+  { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"an isometric PLANTING design board on off-white background. Show a 3D isometric rectangular planter bed densely filled with layered tropical plants (banana, monstera, palms, ferns, philodendron) with a faint human figure silhouette for scale. Below, a row of 6-7 circular plant species photos with botanical name labels. Professional landscape planting presentation, realistic plant renders, botanical reference style." },
 ];
 
 const state = {
   sketch:null, mood:null, style:'Photorealistic CGI',
-  active:new Set(OUTPUTS.map(o=>o.key)), cards:{}, generating:false
+  active:new Set(OUTPUTS.filter(o=>o.key!=='perspective2'&&o.key!=='perspective3').map(o=>o.key)), cards:{}, generating:false
 };
 
 // ── INIT ──
@@ -270,7 +333,7 @@ function init() {
   const grid = document.getElementById('outGrid');
   OUTPUTS.forEach(o => {
     const el = document.createElement('div');
-    el.className = 'out-item active';
+    el.className = state.active.has(o.key) ? 'out-item active' : 'out-item';
     el.dataset.key = o.key;
     el.innerHTML = `<span class="num">${o.num}</span><span class="name">${o.label}</span><span class="ic">${o.ic}</span>`;
     el.onclick = () => toggleOut(o.key, el);
@@ -289,8 +352,11 @@ function init() {
 function switchTab(t) {
   document.getElementById('tabInput').classList.toggle('active', t==='input');
   document.getElementById('tabOutput').classList.toggle('active', t==='output');
+  document.getElementById('tabBoard').classList.toggle('active', t==='board');
   document.getElementById('panelInput').classList.toggle('active', t==='input');
   document.getElementById('panelOutput').classList.toggle('active', t==='output');
+  document.getElementById('panelBoard').classList.toggle('active', t==='board');
+  if (t==='board') initBoard();
 }
 
 // ── IMAGE LOAD (with resize → clean base64) ──
@@ -414,24 +480,49 @@ async function genOne(cfg, brief) {
   setStatus(cfg.key, 'generating', 'GENERATING');
   document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-shimmer"></div>';
 
-  const promptText = `${state.style} architectural visualization. ${cfg.view}. Project: ${brief || 'Contemporary Thai architecture and landscape design, warm natural materials, minimalist aesthetic'}. Transform the provided sketch into this view while keeping the design intent. Match the mood, materials and atmosphere of the reference image. Professional architectural CGI quality, high detail, no text, no watermark.`;
+  const project = brief || 'Contemporary Thai architecture and landscape design, warm natural materials (timber, concrete, stone), minimalist tropical aesthetic';
+  const promptText = `Create ${cfg.view}
+
+PROJECT BRIEF: ${project}
+
+IMPORTANT INSTRUCTIONS:
+- Base the design strictly on the provided sketch/drawing — keep the same layout, proportions, structure and design intent.
+- Match the materials, mood and atmosphere shown in the reference image.
+- This is a professional architectural presentation board output.
+- High detail, clean composition, no watermark, no random text labels unless described above.`;
 
   let data = null, lastErr = 'unknown';
-  try {
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: promptText,
-        sketch: state.sketch || null,
-        mood: state.mood || null
-      })
-    });
-    data = await res.json();
-    if (data.error) { lastErr = data.error; data = null; }
-    else if (data.model) { log(`  ✓ ${data.model}`, 'success'); }
-  } catch (e) {
-    lastErr = e.message;
+  const MAX_TRIES = 3;
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: promptText,
+          sketch: state.sketch || null,
+          mood: state.mood || null
+        })
+      });
+      data = await res.json();
+      if (data.error) { lastErr = data.error; data = null; }
+      else if (data.image) { if (data.model) log(`  ✓ ${data.model}`, 'success'); break; }
+    } catch (e) {
+      lastErr = e.message;
+      data = null;
+    }
+
+    // Decide whether to retry
+    const retryable = /quota|rate|load failed|timeout|exceeded|retry|fetch failed|network/i.test(lastErr);
+    if (data && data.image) break;
+    if (attempt < MAX_TRIES && (retryable || !data)) {
+      const waitMs = 1500 * attempt; // backoff: 1.5s, 3s
+      log(`  ⟳ ${cfg.label} retry ${attempt}/${MAX_TRIES-1} in ${waitMs/1000}s...`, 'warn');
+      setStatus(cfg.key, 'generating', `RETRY ${attempt}`);
+      await delay(waitMs);
+    } else {
+      break;
+    }
   }
 
   if (!data) { showError(cfg.key, lastErr); return; }
@@ -490,6 +581,181 @@ function clearAll() {
 }
 
 function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ════════════════════════════════════════
+// ── BOARD COMPOSER ──
+// ════════════════════════════════════════
+const boardState = { items:[], texts:[], W:1000, H:1414 };
+
+const TEMPLATES = {
+  'portrait-hero': { W:1000, H:1414 },
+  'portrait-full': { W:1000, H:1414 },
+  'landscape-pro': { W:1414, H:1000 },
+  'grid-simple':   { W:1000, H:1414 },
+};
+
+function initBoard() {
+  const done = OUTPUTS.filter(o => state.cards[o.key]?.img);
+  const canvas = document.getElementById('boardCanvas');
+  if (done.length === 0) {
+    canvas.innerHTML = '<div class="board-empty"><div style="font-size:2rem">📐</div><div style="font-family:IBM Plex Mono,monospace;font-size:0.7rem">ยังไม่มีภาพ — ไป Generate ก่อน</div></div>';
+    canvas.style.width = '600px'; canvas.style.height = '300px'; canvas.style.transform='none';
+    return;
+  }
+  if (boardState.items.length === 0) applyTemplate();
+  else drawBoard();
+}
+
+function applyTemplate() {
+  const tpl = document.getElementById('boardTemplate').value;
+  const T = TEMPLATES[tpl];
+  boardState.W = T.W; boardState.H = T.H;
+  boardState.items = []; boardState.texts = [];
+  const W = T.W, H = T.H;
+  const has = k => !!(state.cards[k]?.img);
+  const get = k => has(k) ? k : null;
+  const add = (key,x,y,w,h) => { if(has(key)) boardState.items.push({key,x:x*W/100,y:y*H/100,w:w*W/100,h:h*H/100}); };
+  const addText = (txt,x,y,size,weight) => boardState.texts.push({txt,x:x*W/100,y:y*H/100,size,weight:weight||300,family:'Trirong'});
+  const title = document.getElementById('boardTitle').value;
+  const sub = document.getElementById('boardSub').value;
+
+  if (tpl === 'portrait-hero') {
+    addText(title,4,2,42,600); addText(sub,4,6,15,300);
+    const hero = get('perspective')||get('perspective2')||get('perspective3');
+    if(hero) add(hero,3,9,94,38);
+    add('plan',3,49,46,22); add('section',51,49,46,22);
+    add('elevation',3,73,94,12);
+    add('material',3,87,30,11); add('blowup',35,87,30,11); add('planting',67,87,30,11);
+  } else if (tpl === 'portrait-full') {
+    addText(title,4,1.5,36,600); addText(sub,4,5,13,300);
+    const hero = get('perspective')||get('perspective2');
+    if(hero) add(hero,3,8,94,30);
+    add('section',3,40,46,18); add('plan',51,40,46,18);
+    add('elevation',3,60,94,13);
+    add('blowup',3,75,30,12); add('material',35,75,30,12); add('planting',67,75,30,12);
+    const p2 = get('perspective2')||get('perspective3');
+    if(p2&&p2!==hero) add(p2,3,89,94,9);
+  } else if (tpl === 'landscape-pro') {
+    addText(title,3,2,40,600); addText(sub,3,7,14,300);
+    const hero = get('perspective')||get('perspective2');
+    if(hero) add(hero,3,12,64,50);
+    add('plan',69,12,28,24); add('section',69,38,28,24);
+    add('elevation',3,64,40,16); add('material',45,64,22,16); add('blowup',69,64,28,16);
+    add('planting',3,82,40,15);
+    const p2 = get('perspective3')||get('perspective2');
+    if(p2&&p2!==hero) add(p2,45,82,52,15);
+  } else {
+    const keys = OUTPUTS.filter(o=>has(o.key)).map(o=>o.key);
+    addText(title,4,1.5,34,600);
+    const cols=2, gap=3, startY=8, cw=(94-gap)/cols, ch=20;
+    keys.forEach((k,i)=>{ const col=i%cols,row=Math.floor(i/cols); add(k,3+col*(cw+gap),startY+row*(ch+gap),cw,ch); });
+  }
+  drawBoard();
+}
+
+function drawBoard() {
+  const canvas = document.getElementById('boardCanvas');
+  canvas.innerHTML = '';
+  canvas.style.width = boardState.W+'px'; canvas.style.height = boardState.H+'px';
+  const wrap = document.getElementById('boardWrap');
+  const avail = wrap.clientWidth - 40;
+  const scale = Math.min(1, avail/boardState.W);
+  canvas.style.transform = `scale(${scale})`;
+  canvas.dataset.scale = scale;
+
+  boardState.items.forEach((it,idx) => {
+    const card = state.cards[it.key]; if(!card?.img) return;
+    const el = document.createElement('div');
+    el.className = 'board-item';
+    el.style.cssText = `left:${it.x}px;top:${it.y}px;width:${it.w}px;height:${it.h}px`;
+    const label = OUTPUTS.find(o=>o.key===it.key)?.label || it.key;
+    el.innerHTML = `<img src="${card.img}"><div class="board-cap">${label}</div><div class="resize-h"></div>`;
+    makeDraggable(el,it,'item');
+    canvas.appendChild(el);
+  });
+  boardState.texts.forEach((tx,idx) => {
+    const el = document.createElement('div');
+    el.className = 'board-text';
+    el.style.cssText = `left:${tx.x}px;top:${tx.y}px;font-size:${tx.size}px;font-weight:${tx.weight};font-family:'${tx.family}',serif`;
+    el.textContent = tx.txt;
+    makeDraggable(el,tx,'text');
+    el.addEventListener('dblclick',()=>{ el.contentEditable=true; el.focus();
+      el.onblur=()=>{ el.contentEditable=false; tx.txt=el.textContent; }; });
+    canvas.appendChild(el);
+  });
+}
+
+function makeDraggable(el,obj,type) {
+  let sx,sy,ox,oy,ow,oh,mode;
+  const scale = () => parseFloat(document.getElementById('boardCanvas').dataset.scale)||1;
+  el.addEventListener('pointerdown',(e)=>{
+    if(el.contentEditable==='true') return;
+    e.preventDefault(); e.stopPropagation();
+    document.querySelectorAll('.board-item,.board-text').forEach(x=>x.classList.remove('selected'));
+    el.classList.add('selected');
+    mode = e.target.classList.contains('resize-h') ? 'resize' : 'move';
+    sx=e.clientX; sy=e.clientY; ox=obj.x; oy=obj.y; ow=obj.w; oh=obj.h;
+    el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener('pointermove',(e)=>{
+    if(!mode) return;
+    const s=scale(), dx=(e.clientX-sx)/s, dy=(e.clientY-sy)/s;
+    if(mode==='move'){ obj.x=ox+dx; obj.y=oy+dy; el.style.left=obj.x+'px'; el.style.top=obj.y+'px'; }
+    else if(mode==='resize'&&type==='item'){ obj.w=Math.max(40,ow+dx); obj.h=Math.max(40,oh+dy); el.style.width=obj.w+'px'; el.style.height=obj.h+'px'; }
+  });
+  el.addEventListener('pointerup',(e)=>{ mode=null; try{el.releasePointerCapture(e.pointerId);}catch(_){} });
+}
+
+function autoLayout(){ applyTemplate(); log('Board auto-arranged','success'); }
+function renderBoardTexts(){
+  if(boardState.texts[0]) boardState.texts[0].txt = document.getElementById('boardTitle').value;
+  if(boardState.texts[1]) boardState.texts[1].txt = document.getElementById('boardSub').value;
+  drawBoard();
+}
+
+async function downloadBoardPNG() {
+  if(boardState.items.length===0){ alert('ยังไม่มีภาพบน board'); return; }
+  const c = document.createElement('canvas');
+  c.width = boardState.W; c.height = boardState.H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle='#fbfaf7'; ctx.fillRect(0,0,c.width,c.height);
+  for(const it of boardState.items){
+    const card = state.cards[it.key]; if(!card?.img) continue;
+    await new Promise(res=>{
+      const img = new Image();
+      img.onload=()=>{
+        const ir=img.width/img.height, br=it.w/it.h;
+        let sw,sh,sx2,sy2;
+        if(ir>br){ sh=img.height; sw=sh*br; sx2=(img.width-sw)/2; sy2=0; }
+        else{ sw=img.width; sh=sw/br; sx2=0; sy2=(img.height-sh)/2; }
+        ctx.drawImage(img,sx2,sy2,sw,sh,it.x,it.y,it.w,it.h); res();
+      };
+      img.onerror=res; img.src=card.img;
+    });
+  }
+  boardState.texts.forEach(tx=>{
+    ctx.fillStyle='#2a2a2a'; ctx.font=`${tx.weight} ${tx.size}px ${tx.family}, serif`;
+    ctx.textBaseline='top'; ctx.fillText(tx.txt,tx.x,tx.y);
+  });
+  const a=document.createElement('a'); a.href=c.toDataURL('image/png');
+  a.download=`khangkan-board-${Date.now()}.png`; a.click();
+  log('Board PNG downloaded','success');
+}
+
+function downloadSeparate() {
+  const done = OUTPUTS.filter(o=>state.cards[o.key]?.img);
+  if(done.length===0){ alert('ยังไม่มีภาพ'); return; }
+  done.forEach((o,i)=>setTimeout(()=>{
+    const a=document.createElement('a'); a.href=state.cards[o.key].img;
+    a.download=`khangkan-${o.num}-${o.key}.png`; a.click();
+  }, i*300));
+  log(`Downloading ${done.length} images...`,'success');
+}
+
+document.addEventListener('pointerdown',(e)=>{
+  if(e.target.id==='boardCanvas'||e.target.id==='boardWrap')
+    document.querySelectorAll('.board-item,.board-text').forEach(x=>x.classList.remove('selected'));
+});
 
 init();
 </script>
