@@ -209,6 +209,55 @@
 <!-- INPUT PANEL -->
 <div class="panel active" id="panelInput">
 
+  <div class="section-label">Sketch Inputs (อัปโหลดเท่าที่มี)</div>
+  <div class="upload-zone" id="perspZone"
+       ondragover="dragOver(event,'perspZone')" ondragleave="dragLeave('perspZone')" ondrop="dropFile(event,'sketchPersp')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPersp')">
+    <div id="sketchPerspEmpty">
+      <div class="upload-icon">🏠</div>
+      <div class="upload-title">Sketch · Perspective</div>
+      <div class="upload-sub">ภาพทัศนียภาพ / 3D sketch</div>
+    </div>
+    <img id="sketchPerspPrev" class="upload-preview" style="display:none">
+    <div id="sketchPerspOk" class="upload-ok" style="display:none">Perspective ✓</div>
+  </div>
+
+  <div class="upload-zone" id="planZone"
+       ondragover="dragOver(event,'planZone')" ondragleave="dragLeave('planZone')" ondrop="dropFile(event,'sketchPlan')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPlan')">
+    <div id="sketchPlanEmpty">
+      <div class="upload-icon">🗺</div>
+      <div class="upload-title">Sketch · Plan (Top View)</div>
+      <div class="upload-sub">ผังพื้น มองจากด้านบน — ช่วยให้ Plan แม่นขึ้น</div>
+    </div>
+    <img id="sketchPlanPrev" class="upload-preview" style="display:none">
+    <div id="sketchPlanOk" class="upload-ok" style="display:none">Plan ✓</div>
+  </div>
+
+  <div class="upload-zone" id="elevZone"
+       ondragover="dragOver(event,'elevZone')" ondragleave="dragLeave('elevZone')" ondrop="dropFile(event,'sketchElev')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchElev')">
+    <div id="sketchElevEmpty">
+      <div class="upload-icon">📏</div>
+      <div class="upload-title">Sketch · Elevation</div>
+      <div class="upload-sub">รูปด้าน (ถ้ามี)</div>
+    </div>
+    <img id="sketchElevPrev" class="upload-preview" style="display:none">
+    <div id="sketchElevOk" class="upload-ok" style="display:none">Elevation ✓</div>
+  </div>
+
+  <div class="section-label">Reference Mood Image</div>
+  <div class="upload-zone" id="moodZone"
+       ondragover="dragOver(event,'moodZone')" ondragleave="dragLeave('moodZone')" ondrop="dropFile(event,'mood')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'mood')">
+    <div id="moodEmpty">
+      <div class="upload-icon">🎨</div>
+      <div class="upload-title">Drop Mood Reference</div>
+      <div class="upload-sub">ใช้เป็นโทนสี/บรรยากาศเท่านั้น (ไม่ลอกหน้าตา)</div>
+    </div>
+    <img id="moodPrev" class="upload-preview" style="display:none">
+    <div id="moodOk" class="upload-ok" style="display:none">Mood ref loaded ✓</div>
+  </div>
 
   <div class="section-label">Design Brief</div>
   <textarea id="brief" placeholder="Describe the project...&#10;e.g. Thai contemporary house, teak wood cladding, split skillion roof, tropical garden, warm natural lighting"></textarea>
