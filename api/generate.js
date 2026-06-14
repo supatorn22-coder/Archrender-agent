@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   try {
     // Vercel parses JSON body automatically; fall back to manual parse if needed.
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { prompt, sketch, mood } = body || {};
+    const { prompt, sketch, sketch2, mood } = body || {};
 
     if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
@@ -39,12 +39,14 @@ export default async function handler(req, res) {
       return s.replace(/\s/g, '');
     };
     const sketchB64 = clean(sketch);
+    const sketch2B64 = clean(sketch2);
     const moodB64 = clean(mood);
 
     // Build Gemini parts: text first, then images
     const parts = [{ text: prompt }];
-    if (sketchB64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchB64 } });
-    if (moodB64)   parts.push({ inline_data: { mime_type: 'image/jpeg', data: moodB64 } });
+    if (sketchB64)  parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchB64 } });
+    if (sketch2B64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketch2B64 } });
+    if (moodB64)    parts.push({ inline_data: { mime_type: 'image/jpeg', data: moodB64 } });
 
     let lastErr = 'All models failed';
 
