@@ -318,9 +318,10 @@
     <div class="board-row">
       <span class="board-lbl">Layout</span>
       <select id="boardTemplate" class="board-select" onchange="applyTemplate()">
+        <option value="ekkapong-pro">Pro Board · Operable Wall (ภาพ 2) ⭐</option>
         <option value="portrait-hero">Portrait · Hero + Grid (ภาพ 1,4)</option>
         <option value="portrait-full">Portrait · Full Board (ภาพ 3)</option>
-        <option value="landscape-pro">Landscape · Pro Board (ภาพ 2)</option>
+        <option value="landscape-pro">Landscape · Pro Board</option>
         <option value="grid-simple">Simple Grid</option>
       </select>
     </div>
@@ -343,14 +344,14 @@
 <script>
 // ── CONFIG ──
 const OUTPUTS = [
-  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"a detailed architectural FLOOR PLAN as a precise TECHNICAL DRAWING, strict top-down orthographic view (looking straight down). Charcoal-grey ink linework on warm off-white paper, walls as solid dark poché, furniture and fixtures as clean thin grey lines, wood floors shown with light natural-wood tone fills and fine grain hatching, trees and plants drawn as delicate grey pencil-sketch canopies. Thin dimension lines and scale notation. Elegant neutral monochrome architectural presentation plan. Flat 2D, NOT 3D, NOT axonometric, NOT photorealistic, NO bright colors." },
-  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"a realistic architectural PERSPECTIVE render of the building at eye level, front three-quarter angle, with soft natural daylight. Keep a refined NEUTRAL palette — natural wood, white, concrete grey, glass — with subtle pencil-sketch linework fading at the edges and top (light hand-drawn trees and structure lines) so it reads as an elegant architectural presentation render, not a pure photo. Calm timeless mood." },
-  { key:'perspective2',num:'2b', label:'Perspective · Angle 2', ic:'🏠', view:"a realistic architectural PERSPECTIVE render of the SAME building from a DIFFERENT angle (opposite/rear three-quarter view), eye level, soft daylight. Same refined neutral wood-and-grey palette with subtle pencil-sketch linework fading at the edges. Elegant presentation render." },
-  { key:'perspective3',num:'2c', label:'Perspective · Aerial', ic:'🏠', view:"a realistic slightly elevated bird's-eye PERSPECTIVE render of the whole building and its garden context, soft daylight. Same refined neutral wood-and-grey palette with faint pencil-sketch linework at the edges. Shows full site, walkways, planting. Elegant presentation render." },
-  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"an architectural SECTION drawing (vertical cut through the building) as a refined TECHNICAL DRAWING in neutral monochrome — charcoal-grey linework, solid dark poché for cut walls and ground, light natural-wood tone fills for floors and structure, on warm off-white paper. Show interior furniture in section, ceiling heights, structural columns and footings. Trees drawn as delicate grey pencil-sketch canopies. Thin dimension lines and level markers. Elegant calm presentation section, NOT photorealistic, NOT 3D, NO bright colors." },
+  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"a detailed architectural FLOOR PLAN, strict top-down orthographic view, in a soft refined presentation style: thin grey-black ink linework, walls as solid dark poché, furniture as clean line-work, floors with muted natural-wood tone and subtle green lawn/garden areas, trees drawn as soft pencil-sketch canopies in muted sage-green and grey. Include a small legend numbering rooms and thin dimension lines. Calm elegant muted palette (wood + soft green + grey on off-white). Flat 2D, NOT 3D, NOT photorealistic." },
+  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"a realistic architectural PERSPECTIVE render at eye level (front three-quarter angle) that gradually FADES into a hand-drawn pencil/ink SKETCH toward the top and right edges — photorealistic in the foreground/center, becoming faint construction line-work and sketched structure/trees at the edges (ekkapong competition style). Lush tropical greenery, natural timber and concrete structure, raised platform, water pond with stepping deck, soft natural daylight. Realistic materials and plants in the rendered area." },
+  { key:'perspective2',num:'2b', label:'Perspective · Angle 2', ic:'🏠', view:"a realistic architectural PERSPECTIVE render of the SAME building from a DIFFERENT angle (opposite/rear three-quarter view), eye level, that fades into faint pencil/ink sketch line-work toward the edges (hybrid render-sketch). Lush tropical greenery, timber and concrete, soft daylight. Realistic in the rendered area, sketched at the edges." },
+  { key:'perspective3',num:'2c', label:'Perspective · Aerial', ic:'🏠', view:"a realistic slightly elevated bird's-eye PERSPECTIVE render of the whole building and garden, fading into faint pencil/ink sketch line-work at the edges (hybrid render-sketch). Shows full site, walkways, water features, lush planting and surrounding trees. Realistic center, sketched edges." },
+  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"an architectural SECTION drawing (vertical cut) in a soft refined presentation style like a competition board: thin grey-black ink linework, solid poché for cut walls/ground, muted natural-wood tone fills, the slanted skillion roof profile, interior furniture in section, structural columns and footings. Trees drawn as soft pencil-sketch canopies in muted sage-green and grey above and around. Thin dimension lines, label 'SECTION A-A'. Calm muted palette (wood + soft green + grey on off-white). Flat 2D, NOT 3D, NOT photorealistic." },
   { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"an architectural ELEVATION drawing (flat orthographic facade view) as a refined TECHNICAL DRAWING in neutral monochrome — fine charcoal-grey linework with light natural-wood tone fills for timber cladding, soft grey shading for concrete and glass, on warm off-white paper. Show facade materials, openings, vertical proportions. Trees and climbing plants drawn as delicate grey pencil-sketch linework (not colored green). Elegant calm presentation elevation. Flat 2D, NOT 3D, NOT photorealistic, NO saturated colors." },
   { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"an architectural DETAIL SECTION diagram (blow-up technical drawing) in clean fine-line drafting style, charcoal-grey ink on warm off-white paper with light natural-wood tone fills. Show a vertical wall/roof construction detail with layered components: roof structure, wood ceiling, wood panel, concrete floor, structural slab, footing, with material hatching. Thin leader lines pointing to each labeled component on the right. Precise elegant working-drawing aesthetic, neutral monochrome." },
-  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"a MATERIAL PALETTE presentation board, __MAT_ORIENT__, on a clean warm off-white background. Show 5-6 circular material swatch samples each with a clear LARGE readable label: Natural Wood, Exposed Concrete, Clear Glass, Natural Stone, Bronze Metal, Greenery. Realistic circular texture samples in a neutral wood-and-grey palette. Minimal elegant architectural material board with a serif heading 'MATERIAL PALETTE'. Labels must be large and legible." },
+  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"a MATERIAL PALETTE presentation board, __MAT_ORIENT__, on a clean off-white background. Show 6 circular material swatch samples in a neat row, each with a clear label below: Natural Wood, Smooth Concrete, Linen Fabric, Stone, Glass, Black Steel. Realistic circular texture samples in a calm neutral wood-and-grey palette. Minimal elegant architectural material board matching a competition presentation sheet. Labels legible." },
   { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"an isometric PLANTING design board on a clean warm off-white background with a serif heading 'PLANTING DESIGN'. Show a 3D isometric rectangular planter bed with layered tropical plants (banana, monstera, palms, ferns) rendered naturally but in a restrained palette to match a neutral architectural board. Below, a row of 5-6 circular plant species photos with clear LARGE readable botanical-name labels. Elegant professional landscape presentation, labels must be legible." },
 ];
 
@@ -526,11 +527,14 @@ async function genOne(cfg, brief) {
 
   const project = brief || 'Contemporary Thai architecture and landscape design, warm natural materials (timber, concrete, stone), minimalist tropical aesthetic';
 
-  // Unified MASTER STYLE DNA — neutral monochrome + natural wood (architectural competition board)
-  const STYLE_DNA = "UNIFIED PRESENTATION STYLE applied identically across the whole set so all drawings look like one cohesive architecture board: a refined NEUTRAL MONOCHROME palette — warm white, cream, soft greys, charcoal linework — accented ONLY with NATURAL WOOD tones (light oak, walnut brown). NO saturated colors, NO bright green, NO orange tint. Vegetation and trees are drawn as delicate pencil/ink SKETCH linework in grey (not colored). Elegant, calm, timeless, minimal luxury mood with abundant natural light. Fine architectural pencil-and-ink lines combined with soft subtle shading on a clean off-white paper background.";
+  // Unified MASTER STYLE DNA — cohesive competition-board look (ekkapong + operable-wall reference)
+  const isPersp = cfg.key.startsWith('perspective');
+  const STYLE_DNA = isPersp
+    ? "PRESENTATION STYLE: a realistic architectural render that gradually fades into hand-drawn pencil/ink sketch line-work toward the edges (hybrid render-sketch, architectural competition style). Natural materials — timber, concrete, glass — with lush but natural-toned greenery, soft daylight, calm elegant mood. Realistic in the focal area, faint sketch lines and sketched trees at the edges."
+    : "UNIFIED PRESENTATION STYLE so all technical drawings look like one cohesive architecture board: a calm muted palette — warm off-white paper, natural-wood tones, soft sage-green for planting, grey-black fine linework. Soft pencil-and-ink technical drawing aesthetic with light shading. Elegant, minimal, timeless. NO neon or saturated colors — keep greens muted and natural.";
 
   // Pick the most relevant sketch as the PRIMARY design reference per view
-  const isPerspective = cfg.key.startsWith('perspective');
+  const isPerspective = isPersp;
   const isPlan = cfg.key === 'plan';
   const isElevSection = cfg.key === 'elevation' || cfg.key === 'section';
 
@@ -671,6 +675,7 @@ function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
 const boardState = { items:[], texts:[], W:1000, H:1414 };
 
 const TEMPLATES = {
+  'ekkapong-pro': { W:1080, H:1414 },
   'portrait-hero': { W:1000, H:1414 },
   'portrait-full': { W:1000, H:1414 },
   'landscape-pro': { W:1414, H:1000 },
@@ -702,7 +707,25 @@ function applyTemplate() {
   const title = document.getElementById('boardTitle').value;
   const sub = document.getElementById('boardSub').value;
 
-  if (tpl === 'portrait-hero') {
+  if (tpl === 'ekkapong-pro') {
+    // Reference 2 (Operable Wall) composition
+    addText(title, 3, 1.5, 30, 600);
+    addText(sub, 3, 4.5, 12, 300);
+    // Hero perspective big at top
+    const hero = get('perspective')||get('perspective2');
+    if(hero) add(hero, 3, 7, 94, 33);
+    // Thumbnail row of extra perspectives / interior shots
+    const thumbs = [get('perspective2'), get('perspective3')].filter(k=>k&&k!==hero);
+    thumbs.forEach((k,i)=> add(k, 3 + i*47.5, 41.5, 46, 11));
+    // Plan left, Section right (two stacked)
+    add('plan', 3, 55, 45, 22);
+    add('section', 51, 55, 46, 11);
+    add('elevation', 51, 67, 46, 10);
+    // Bottom row: material / blowup / planting
+    add('material', 3, 79, 30, 13);
+    add('blowup', 35, 79, 28, 13);
+    add('planting', 65, 79, 32, 13);
+  } else if (tpl === 'portrait-hero') {
     addText(title,4,2,42,600); addText(sub,4,6,15,300);
     const hero = get('perspective')||get('perspective2')||get('perspective3');
     if(hero) add(hero,3,9,94,38);
