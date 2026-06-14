@@ -2,12 +2,15 @@
 // Proxies image generation to Google Gemini, keeping the API key server-side.
 // Set GEMINI_API_KEY in Vercel → Project → Settings → Environment Variables.
 
+export const config = {
+  maxDuration: 60,
+};
+
 const MODELS = [
-  'gemini-3-pro-image',
-  'gemini-3-pro-image-preview',
   'gemini-3.1-flash-image',
   'gemini-3.1-flash-image-preview',
   'gemini-2.5-flash-image',
+  'gemini-3-pro-image',
 ];
 
 export default async function handler(req, res) {

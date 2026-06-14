@@ -560,10 +560,9 @@ ${isPerspective ? '- Render a NEW camera ANGLE/viewpoint of THIS building (do no
 ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight down). NOT a 3D or axonometric view.' : ''}
 - Professional architectural presentation output, high detail, no watermark, no random text labels unless described above.`;
 
-  // Build sketch payload (send up to 2 sketches: primary + plan for context)
+  // Build sketch payload — send only the primary sketch for speed (avoid timeout)
   const sketches = [];
   if (primary) sketches.push(primary);
-  if (isPerspective && state.sketchPlan && state.sketchPlan !== primary) sketches.push(state.sketchPlan);
 
   let data = null, lastErr = 'unknown';
   const MAX_TRIES = 3;
@@ -579,9 +578,18 @@ ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight
           mood: state.mood || null
         })
       });
-      data = await res.json();
-      if (data.error) { lastErr = data.error; data = null; }
-      else if (data.image) { if (data.model) log(`  ✓ ${data.model}`, 'success'); break; }
+      // Safely parse — proxy may return plain-text error on timeout
+      const raw = await res.text();
+      try {
+        data = JSON.parse(raw);
+      } catch (_) {
+        lastErr = res.status === 504
+          ? 'Timeout — รูปนี้ใช้เวลานานเกินไป (ลอง generate ทีละน้อย หรือลดจำนวนภาพ input)'
+          : `Server: ${raw.slice(0, 120)}`;
+        data = null;
+      }
+      if (data && data.error) { lastErr = data.error; data = null; }
+      else if (data && data.image) { if (data.model) log(`  ✓ ${data.model}`, 'success'); break; }
     } catch (e) {
       lastErr = e.message;
       data = null;
