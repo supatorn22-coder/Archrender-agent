@@ -192,6 +192,8 @@
   .board-text.selected { border-color:var(--accent); }
   .board-text[contenteditable="true"] { outline:2px solid var(--accent); cursor:text; background:rgba(255,255,255,0.8); }
   .board-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; gap:10px; color:#bbb; width:100%; }
+  .copy-prompt-btn { margin:8px; padding:6px 12px; background:#2a1a10; border:1px solid var(--accent); border-radius:5px; color:var(--accent); cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; }
+  .copy-prompt-btn:hover { background:var(--accent); color:#fff; }
 </style>
 </head>
 <body>
@@ -246,6 +248,42 @@
     <div id="sketchElevOk" class="upload-ok" style="display:none">Elevation ✓</div>
   </div>
 
+  <div class="upload-zone" id="sectZone"
+       ondragover="dragOver(event,'sectZone')" ondragleave="dragLeave('sectZone')" ondrop="dropFile(event,'sketchSect')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchSect')">
+    <div id="sketchSectEmpty">
+      <div class="upload-icon">✂️</div>
+      <div class="upload-title">Sketch · Section</div>
+      <div class="upload-sub">รูปตัด (ถ้ามี)</div>
+    </div>
+    <img id="sketchSectPrev" class="upload-preview" style="display:none">
+    <div id="sketchSectOk" class="upload-ok" style="display:none">Section ✓</div>
+  </div>
+
+  <div class="upload-zone" id="isoZone"
+       ondragover="dragOver(event,'isoZone')" ondragleave="dragLeave('isoZone')" ondrop="dropFile(event,'sketchIso')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchIso')">
+    <div id="sketchIsoEmpty">
+      <div class="upload-icon">📦</div>
+      <div class="upload-title">Sketch · Isometric</div>
+      <div class="upload-sub">ภาพ 3D ไอโซเมตริก (ถ้ามี)</div>
+    </div>
+    <img id="sketchIsoPrev" class="upload-preview" style="display:none">
+    <div id="sketchIsoOk" class="upload-ok" style="display:none">Isometric ✓</div>
+  </div>
+
+  <div class="upload-zone" id="detailZone"
+       ondragover="dragOver(event,'detailZone')" ondragleave="dragLeave('detailZone')" ondrop="dropFile(event,'sketchDetail')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchDetail')">
+    <div id="sketchDetailEmpty">
+      <div class="upload-icon">🔍</div>
+      <div class="upload-title">Sketch · Detail</div>
+      <div class="upload-sub">แบบ detail / construction (ถ้ามี)</div>
+    </div>
+    <img id="sketchDetailPrev" class="upload-preview" style="display:none">
+    <div id="sketchDetailOk" class="upload-ok" style="display:none">Detail ✓</div>
+  </div>
+
   <div class="section-label">Reference Mood Image</div>
   <div class="upload-zone" id="moodZone"
        ondragover="dragOver(event,'moodZone')" ondragleave="dragLeave('moodZone')" ondrop="dropFile(event,'mood')">
@@ -269,6 +307,12 @@
     <div class="chip" data-style="Pencil hand drawing rendering">Pencil</div>
     <div class="chip" data-style="Clean architectural line art sketch">Sketch Art</div>
     <div class="chip" data-style="Night cinematic render with artificial lighting">Night</div>
+  </div>
+
+  <div class="section-label">Output Mode</div>
+  <div class="chips" id="modeChips">
+    <div class="chip active" data-mode="render">🖼 Render (สร้างภาพ)</div>
+    <div class="chip" data-mode="prompt">📝 Prompt (ประหยัด token)</div>
   </div>
 
   <div class="section-label">Output Views</div>
@@ -344,19 +388,19 @@
 <script>
 // ── CONFIG ──
 const OUTPUTS = [
-  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"a detailed architectural FLOOR PLAN, strict top-down orthographic view, in a soft refined presentation style: thin grey-black ink linework, walls as solid dark poché, furniture as clean line-work, floors with muted natural-wood tone and subtle green lawn/garden areas, trees drawn as soft pencil-sketch canopies in muted sage-green and grey. Include a small legend numbering rooms and thin dimension lines. Calm elegant muted palette (wood + soft green + grey on off-white). Flat 2D, NOT 3D, NOT photorealistic." },
-  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"a realistic architectural PERSPECTIVE render at eye level (front three-quarter angle) that gradually FADES into a hand-drawn pencil/ink SKETCH toward the top and right edges — photorealistic in the foreground/center, becoming faint construction line-work and sketched structure/trees at the edges (ekkapong competition style). Lush tropical greenery, natural timber and concrete structure, raised platform, water pond with stepping deck, soft natural daylight. Realistic materials and plants in the rendered area." },
-  { key:'perspective2',num:'2b', label:'Perspective · Angle 2', ic:'🏠', view:"a realistic architectural PERSPECTIVE render of the SAME building from a DIFFERENT angle (opposite/rear three-quarter view), eye level, that fades into faint pencil/ink sketch line-work toward the edges (hybrid render-sketch). Lush tropical greenery, timber and concrete, soft daylight. Realistic in the rendered area, sketched at the edges." },
-  { key:'perspective3',num:'2c', label:'Perspective · Aerial', ic:'🏠', view:"a realistic slightly elevated bird's-eye PERSPECTIVE render of the whole building and garden, fading into faint pencil/ink sketch line-work at the edges (hybrid render-sketch). Shows full site, walkways, water features, lush planting and surrounding trees. Realistic center, sketched edges." },
-  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"an architectural SECTION drawing (vertical cut) in a soft refined presentation style like a competition board: thin grey-black ink linework, solid poché for cut walls/ground, muted natural-wood tone fills, the slanted skillion roof profile, interior furniture in section, structural columns and footings. Trees drawn as soft pencil-sketch canopies in muted sage-green and grey above and around. Thin dimension lines, label 'SECTION A-A'. Calm muted palette (wood + soft green + grey on off-white). Flat 2D, NOT 3D, NOT photorealistic." },
-  { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"an architectural ELEVATION drawing (flat orthographic facade view) as a refined TECHNICAL DRAWING in neutral monochrome — fine charcoal-grey linework with light natural-wood tone fills for timber cladding, soft grey shading for concrete and glass, on warm off-white paper. Show facade materials, openings, vertical proportions. Trees and climbing plants drawn as delicate grey pencil-sketch linework (not colored green). Elegant calm presentation elevation. Flat 2D, NOT 3D, NOT photorealistic, NO saturated colors." },
-  { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"an architectural DETAIL SECTION diagram (blow-up technical drawing) in clean fine-line drafting style, charcoal-grey ink on warm off-white paper with light natural-wood tone fills. Show a vertical wall/roof construction detail with layered components: roof structure, wood ceiling, wood panel, concrete floor, structural slab, footing, with material hatching. Thin leader lines pointing to each labeled component on the right. Precise elegant working-drawing aesthetic, neutral monochrome." },
-  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"a MATERIAL PALETTE presentation board, __MAT_ORIENT__, on a clean off-white background. Show 6 circular material swatch samples in a neat row, each with a clear label below: Natural Wood, Smooth Concrete, Linen Fabric, Stone, Glass, Black Steel. Realistic circular texture samples in a calm neutral wood-and-grey palette. Minimal elegant architectural material board matching a competition presentation sheet. Labels legible." },
-  { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"an isometric PLANTING design board on a clean warm off-white background with a serif heading 'PLANTING DESIGN'. Show a 3D isometric rectangular planter bed with layered tropical plants (banana, monstera, palms, ferns) rendered naturally but in a restrained palette to match a neutral architectural board. Below, a row of 5-6 circular plant species photos with clear LARGE readable botanical-name labels. Elegant professional landscape presentation, labels must be legible." },
+  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"a SITE/FLOOR PLAN, strict top-down orthographic view, as a hand-drawn architectural watercolor-and-pencil drawing. Fine pencil line-work for walls and furniture, soft watercolor washes for floors (warm wood tone) and garden areas (sage-green), trees drawn as loose translucent sage-green watercolor canopies seen from above, natural-stone and path textures. Thin dimension lines, small room labels, scale note. Light airy elegant presentation plan. Flat 2D top-down, NOT 3D, NOT axonometric." },
+  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"an eye-level architectural PERSPECTIVE (front three-quarter angle) as a beautiful hand-drawn watercolor-and-pencil illustration: the building painted in soft watercolor over fine pencil lines, surrounded by loose sage-green watercolor trees and planting, partly fading into pencil construction sketch lines toward the top/edges. Natural timber, concrete, glass. Soft daylight, airy elegant architectural-sketch mood." },
+  { key:'perspective2',num:'2b', label:'Perspective · Angle 2', ic:'🏠', view:"an architectural PERSPECTIVE of the SAME building from a DIFFERENT angle (opposite/rear three-quarter), as a hand-drawn watercolor-and-pencil illustration with sage-green watercolor trees, fading into pencil sketch lines at the edges. Same airy elegant style." },
+  { key:'perspective3',num:'2c', label:'Perspective · Aerial', ic:'🏠', view:"a slightly elevated bird's-eye PERSPECTIVE of the whole building and garden, hand-drawn watercolor-and-pencil illustration with loose sage-green watercolor planting, fading into pencil sketch lines at the edges. Shows full site context. Airy elegant style." },
+  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"an architectural SECTION (vertical cut) as a hand-drawn watercolor-and-pencil drawing: fine pencil line-work for the cut structure, soft watercolor washes (warm wood, grey concrete), interior furniture in section, the slanted roof profile, structural columns and footings, with loose sage-green watercolor trees around and above. Thin dimension lines, label 'SECTION A-A'. Light airy elegant style. Flat 2D, NOT 3D, NOT photorealistic." },
+  { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"an architectural ELEVATION (flat orthographic facade) as a hand-drawn watercolor-and-pencil drawing: fine pencil line-work for the facade, soft watercolor washes for timber cladding (warm wood), concrete (light grey) and glass, with loose sage-green watercolor trees and planting in front and around. Thin dimension lines, label 'FRONT ELEVATION'. Light airy elegant style. Flat 2D, NOT 3D, NOT photorealistic." },
+  { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"an architectural DETAIL drawing (blow-up construction detail, e.g. roof eave / rain chain / wall section) as a fine pencil/ink technical drawing with light watercolor washes (warm wood, grey concrete) on off-white paper. Show layered construction components with thin leader lines and labels on the side, material hatching. Precise elegant hand-drawn working-detail aesthetic matching the watercolor board style." },
+  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"a MATERIAL PALETTE board, __MAT_ORIENT__, on warm off-white paper matching a watercolor architecture sheet. Show 6 material swatch samples (square or circular) with labels: Natural Wood, White Concrete, Glass, Corrugated Grey Metal, Natural Stone, Sage Greenery. Realistic but softly-rendered texture samples in a natural sage-wood-grey palette. Elegant heading 'MATERIAL PALETTE'. Labels legible." },
+  { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"a PLANT LIST / planting board as a hand-drawn watercolor illustration on off-white paper: a row of individual plants, grasses, shrubs and rocks each painted in loose sage-green watercolor with pencil outlines, each labeled with its botanical/common name below (e.g. Foothill Sedge, Berkeley Sedge, Manzanita, Boulder). Elegant heading 'PLANT LIST'. Matches the watercolor architecture board style, labels legible." },
 ];
 
 const state = {
-  sketchPersp:null, sketchPlan:null, sketchElev:null, mood:null, style:'Photorealistic CGI', matOrient:'vertical',
+  sketchPersp:null, sketchPlan:null, sketchElev:null, sketchSect:null, sketchIso:null, sketchDetail:null, mood:null, style:'Photorealistic CGI', matOrient:'vertical', mode:'render',
   active:new Set(OUTPUTS.filter(o=>o.key!=='perspective2'&&o.key!=='perspective3').map(o=>o.key)), cards:{}, generating:false
 };
 
@@ -383,6 +427,15 @@ function init() {
       document.querySelectorAll('#matOrientChips .chip').forEach(x => x.classList.remove('active'));
       c.classList.add('active');
       state.matOrient = c.dataset.orient;
+    };
+  });
+  document.querySelectorAll('#modeChips .chip').forEach(c => {
+    c.onclick = () => {
+      document.querySelectorAll('#modeChips .chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      state.mode = c.dataset.mode;
+      document.getElementById('genBtn').textContent =
+        state.mode === 'prompt' ? '📝 Generate Prompts' : '⚡ Generate All Renders';
     };
   });
 }
@@ -425,6 +478,9 @@ function processFile(file, type) {
         sketchPersp: { st:'sketchPersp', prev:'sketchPerspPrev', empty:'sketchPerspEmpty', ok:'sketchPerspOk' },
         sketchPlan:  { st:'sketchPlan',  prev:'sketchPlanPrev',  empty:'sketchPlanEmpty',  ok:'sketchPlanOk'  },
         sketchElev:  { st:'sketchElev',  prev:'sketchElevPrev',  empty:'sketchElevEmpty',  ok:'sketchElevOk'  },
+        sketchSect:  { st:'sketchSect',  prev:'sketchSectPrev',  empty:'sketchSectEmpty',  ok:'sketchSectOk'  },
+        sketchIso:   { st:'sketchIso',   prev:'sketchIsoPrev',   empty:'sketchIsoEmpty',   ok:'sketchIsoOk'   },
+        sketchDetail:{ st:'sketchDetail',prev:'sketchDetailPrev',empty:'sketchDetailEmpty',ok:'sketchDetailOk'},
         mood:        { st:'mood',        prev:'moodPrev',        empty:'moodEmpty',        ok:'moodOk'        },
       };
       const m = map[type] || map.mood;
@@ -445,7 +501,7 @@ function dragOver(e,id){ e.preventDefault(); document.getElementById(id).classLi
 function dragLeave(id){ document.getElementById(id).classList.remove('drag'); }
 function dropFile(e,type){
   e.preventDefault();
-  const zoneMap = { sketchPersp:'perspZone', sketchPlan:'planZone', sketchElev:'elevZone', mood:'moodZone' };
+  const zoneMap = { sketchPersp:'perspZone', sketchPlan:'planZone', sketchElev:'elevZone', sketchSect:'sectZone', sketchIso:'isoZone', sketchDetail:'detailZone', mood:'moodZone' };
   const id = zoneMap[type] || 'moodZone';
   document.getElementById(id).classList.remove('drag');
   processFile(e.dataTransfer.files[0], type);
@@ -497,7 +553,7 @@ function buildCards() {
 // ── GENERATE ──
 async function startGen() {
   const brief = document.getElementById('brief').value.trim();
-  const hasSketch = state.sketchPersp || state.sketchPlan || state.sketchElev;
+  const hasSketch = state.sketchPersp || state.sketchPlan || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail;
   if (!brief && !hasSketch) { log('⚠ Add a sketch or brief', 'error'); return; }
   if (state.active.size === 0) { log('⚠ Select at least one output', 'error'); return; }
   if (state.generating) return;
@@ -527,23 +583,44 @@ async function genOne(cfg, brief) {
 
   const project = brief || 'Contemporary Thai architecture and landscape design, warm natural materials (timber, concrete, stone), minimalist tropical aesthetic';
 
-  // Unified MASTER STYLE DNA — cohesive competition-board look (ekkapong + operable-wall reference)
+  // Unified MASTER STYLE DNA — hand-drawn architectural WATERCOLOR + pencil/ink line (ekkapong board style)
   const isPersp = cfg.key.startsWith('perspective');
+  const WATERCOLOR_DNA = "MASTER PRESENTATION STYLE for the entire board so every drawing looks unified: a HAND-DRAWN ARCHITECTURAL WATERCOLOR-AND-PENCIL illustration — translucent soft watercolor washes over fine pencil/ink technical linework, on warm off-white paper. Palette: soft SAGE-GREEN foliage, warm natural WOOD tones, light grey CONCRETE, cream. Trees and plants are loose translucent watercolor in sage green. Light, airy, organic, elegant architectural-sketch mood with delicate dimension lines. NOT photorealistic CGI, NOT flat vector — it must look like a beautiful hand-painted architecture presentation drawing.";
   const STYLE_DNA = isPersp
-    ? "PRESENTATION STYLE: a realistic architectural render that gradually fades into hand-drawn pencil/ink sketch line-work toward the edges (hybrid render-sketch, architectural competition style). Natural materials — timber, concrete, glass — with lush but natural-toned greenery, soft daylight, calm elegant mood. Realistic in the focal area, faint sketch lines and sketched trees at the edges."
-    : "UNIFIED PRESENTATION STYLE so all technical drawings look like one cohesive architecture board: a calm muted palette — warm off-white paper, natural-wood tones, soft sage-green for planting, grey-black fine linework. Soft pencil-and-ink technical drawing aesthetic with light shading. Elegant, minimal, timeless. NO neon or saturated colors — keep greens muted and natural.";
+    ? WATERCOLOR_DNA + " For this perspective: a watercolor-rendered building with surrounding sage-green watercolor trees, partly fading into pencil construction sketch lines toward the edges."
+    : WATERCOLOR_DNA;
 
-  // Pick the most relevant sketch as the PRIMARY design reference per view
+  // ── SMART SKETCH SELECTION per view ──
+  // 1) If a sketch exists for THIS exact view → use it as primary.
+  // 2) Otherwise → fall back to Plan + Perspective together (so AI keeps the design consistent).
   const isPerspective = isPersp;
   const isPlan = cfg.key === 'plan';
-  const isElevSection = cfg.key === 'elevation' || cfg.key === 'section';
 
-  let primary = null, primaryLabel = '';
-  if (isPlan && state.sketchPlan) { primary = state.sketchPlan; primaryLabel = 'floor plan (top view)'; }
-  else if (isElevSection && state.sketchElev) { primary = state.sketchElev; primaryLabel = 'elevation'; }
-  else if (isPerspective && state.sketchPersp) { primary = state.sketchPersp; primaryLabel = 'perspective'; }
-  // fallback to any available sketch
-  primary = primary || state.sketchPersp || state.sketchPlan || state.sketchElev || null;
+  const exactMap = {
+    plan: ['sketchPlan','floor plan (top view)'],
+    perspective: ['sketchPersp','perspective'],
+    perspective2: ['sketchPersp','perspective'],
+    perspective3: ['sketchPersp','perspective'],
+    elevation: ['sketchElev','elevation'],
+    section: ['sketchSect','section'],
+    blowup: ['sketchDetail','construction detail'],
+    material: [null,''],
+    planting: ['sketchPlan','site/plan'],
+  };
+  const [exactKey, exactLabel] = exactMap[cfg.key] || [null,''];
+
+  let primary = null, primaryLabel = '', secondary = null;
+  if (exactKey && state[exactKey]) {
+    primary = state[exactKey];
+    primaryLabel = exactLabel;
+  } else {
+    // fallback: plan + perspective combined for design consistency
+    primary = state.sketchPlan || state.sketchPersp || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail || null;
+    secondary = (state.sketchPersp && state.sketchPersp !== primary) ? state.sketchPersp : (state.sketchPlan && state.sketchPlan !== primary ? state.sketchPlan : null);
+    primaryLabel = 'available Plan and Perspective sketches (analyze them together to keep the design consistent)';
+  }
+  // also pass isometric as extra context if present and relevant
+  if (!secondary && state.sketchIso && state.sketchIso !== primary) secondary = state.sketchIso;
 
   const matOrient = (state.matOrient === 'horizontal')
     ? 'arranged HORIZONTALLY in a wide landscape row'
@@ -558,15 +635,16 @@ ${STYLE_DNA}
 
 CRITICAL DESIGN-FIDELITY INSTRUCTIONS:
 - The attached sketch image(s) define the BUILDING DESIGN — keep the SAME layout, proportions, roof form, structure and spatial arrangement.
-- ${primaryLabel ? `Use the ${primaryLabel} sketch as the main design reference for this view.` : 'Follow the provided sketches.'}
+- ${primaryLabel ? `Reference: use the ${primaryLabel} as the design source for this view.` : 'Follow the provided sketches.'}
 - The mood/reference image is ONLY for color palette, materials and atmosphere — do NOT copy its building shape or composition.
 ${isPerspective ? '- Render a NEW camera ANGLE/viewpoint of THIS building (do not reuse the reference photo composition).' : ''}
 ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight down). NOT a 3D or axonometric view.' : ''}
 - Professional architectural presentation output, high detail, no watermark, no random text labels unless described above.`;
 
-  // Build sketch payload — send only the primary sketch for speed (avoid timeout)
+  // Build sketch payload — primary + optional secondary (for fallback consistency)
   const sketches = [];
   if (primary) sketches.push(primary);
+  if (secondary) sketches.push(secondary);
 
   let data = null, lastErr = 'unknown';
   const MAX_TRIES = 3;
@@ -579,7 +657,8 @@ ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight
           prompt: promptText,
           sketch: sketches[0] || null,
           sketch2: sketches[1] || null,
-          mood: state.mood || null
+          mood: state.mood || null,
+          mode: state.mode
         })
       });
       // Safely parse — proxy may return plain-text error on timeout
@@ -594,6 +673,7 @@ ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight
       }
       if (data && data.error) { lastErr = data.error; data = null; }
       else if (data && data.image) { if (data.model) log(`  ✓ ${data.model}`, 'success'); break; }
+      else if (data && state.mode === 'prompt' && data.text) { break; } // prompt mode: text is the result
     } catch (e) {
       lastErr = e.message;
       data = null;
@@ -601,7 +681,7 @@ ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight
 
     // Decide whether to retry
     const retryable = /quota|rate|load failed|timeout|exceeded|retry|fetch failed|network/i.test(lastErr);
-    if (data && data.image) break;
+    if (data && (data.image || (state.mode==='prompt' && data.text))) break;
     if (attempt < MAX_TRIES && (retryable || !data)) {
       const waitMs = 1500 * attempt; // backoff: 1.5s, 3s
       log(`  ⟳ ${cfg.label} retry ${attempt}/${MAX_TRIES-1} in ${waitMs/1000}s...`, 'warn');
@@ -613,6 +693,21 @@ ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight
   }
 
   if (!data) { showError(cfg.key, lastErr); return; }
+
+  // PROMPT MODE — show the generated prompt text (copyable), no image
+  if (state.mode === 'prompt') {
+    const ptxt = data.text || promptText;
+    state.cards[cfg.key].prompt = ptxt;
+    state.cards[cfg.key].status = 'done';
+    document.getElementById(`body-${cfg.key}`).innerHTML =
+      `<div class="card-msg" style="color:#d4c5b0;text-align:left;white-space:pre-wrap;font-size:0.72rem;line-height:1.6;max-height:300px;overflow:auto;padding:4px">${ptxt.replace(/</g,'&lt;')}</div>
+       <button class="copy-prompt-btn" onclick="copyPrompt('${cfg.key}')">📋 Copy Prompt</button>`;
+    setStatus(cfg.key, 'done', 'PROMPT');
+    document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-done"></div>';
+    log(`✓ ${cfg.label} prompt ready`, 'success');
+    updateCount();
+    return;
+  }
 
   // Extract image returned by proxy
   let imgB64 = data.image || null;
@@ -632,6 +727,11 @@ ${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight
   } else {
     showError(cfg.key, txt || 'No image returned. Check the API key set in Vercel env vars and that it has image generation access.');
   }
+}
+
+function copyPrompt(key) {
+  const txt = state.cards[key]?.prompt || '';
+  navigator.clipboard?.writeText(txt).then(()=>log(`Copied ${key} prompt`,'success'));
 }
 
 function showError(key, msg) {

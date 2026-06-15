@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   try {
     // Vercel parses JSON body automatically; fall back to manual parse if needed.
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { prompt, sketch, sketch2, mood } = body || {};
+    const { prompt, sketch, sketch2, mood, mode } = body || {};
 
     if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
 
@@ -44,6 +44,20 @@ export default async function handler(req, res) {
     const sketchB64 = clean(sketch);
     const sketch2B64 = clean(sketch2);
     const moodB64 = clean(mood);
+
+    // ── PROMPT MODE — generate an optimized image-gen prompt only (cheap text model, saves tokens/cost) ──
+    if (mode === 'prompt') {
+      const sys = `You are an expert architectural visualization prompt engineer. Based on the description below, write ONE concise, vivid, ready-to-use image-generation prompt (for Midjourney/Stable Diffusion/Gemini) that would produce this architectural view. Output ONLY the prompt text, no preamble, no explanation, max 120 words.\n\nDESCRIPTION:\n${prompt}`;
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+        { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ contents:[{ role:'user', parts:[{text:sys}] }] }) }
+      );
+      const d = await r.json();
+      if (d.error) return res.status(200).json({ error: d.error.message });
+      const text = (d.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('').trim();
+      return res.status(200).json({ text: text || prompt, mode:'prompt' });
+    }
 
     // Build Gemini parts: text first, then images
     const parts = [{ text: prompt }];
