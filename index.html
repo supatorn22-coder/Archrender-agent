@@ -224,6 +224,30 @@
     <div id="sketchPerspOk" class="upload-ok" style="display:none">Perspective ✓</div>
   </div>
 
+  <div class="upload-zone" id="persp2Zone"
+       ondragover="dragOver(event,'persp2Zone')" ondragleave="dragLeave('persp2Zone')" ondrop="dropFile(event,'sketchPersp2')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPersp2')">
+    <div id="sketchPersp2Empty">
+      <div class="upload-icon">🏠</div>
+      <div class="upload-title">Sketch · Perspective 2</div>
+      <div class="upload-sub">มุมที่ 2 (ถ้ามี)</div>
+    </div>
+    <img id="sketchPersp2Prev" class="upload-preview" style="display:none">
+    <div id="sketchPersp2Ok" class="upload-ok" style="display:none">Perspective 2 ✓</div>
+  </div>
+
+  <div class="upload-zone" id="persp3Zone"
+       ondragover="dragOver(event,'persp3Zone')" ondragleave="dragLeave('persp3Zone')" ondrop="dropFile(event,'sketchPersp3')">
+    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPersp3')">
+    <div id="sketchPersp3Empty">
+      <div class="upload-icon">🏠</div>
+      <div class="upload-title">Sketch · Perspective 3</div>
+      <div class="upload-sub">มุมที่ 3 / มุมสูง (ถ้ามี)</div>
+    </div>
+    <img id="sketchPersp3Prev" class="upload-preview" style="display:none">
+    <div id="sketchPersp3Ok" class="upload-ok" style="display:none">Perspective 3 ✓</div>
+  </div>
+
   <div class="upload-zone" id="planZone"
        ondragover="dragOver(event,'planZone')" ondragleave="dragLeave('planZone')" ondrop="dropFile(event,'sketchPlan')">
     <input type="file" accept="image/*" onchange="loadImg(event,'sketchPlan')">
@@ -400,7 +424,7 @@ const OUTPUTS = [
 ];
 
 const state = {
-  sketchPersp:null, sketchPlan:null, sketchElev:null, sketchSect:null, sketchIso:null, sketchDetail:null, mood:null, style:'Photorealistic CGI', matOrient:'vertical', mode:'render',
+  sketchPersp:null, sketchPersp2:null, sketchPersp3:null, sketchPlan:null, sketchElev:null, sketchSect:null, sketchIso:null, sketchDetail:null, mood:null, style:'Photorealistic CGI', matOrient:'vertical', mode:'render',
   active:new Set(OUTPUTS.filter(o=>o.key!=='perspective2'&&o.key!=='perspective3').map(o=>o.key)), cards:{}, generating:false
 };
 
@@ -476,6 +500,8 @@ function processFile(file, type) {
 
       const map = {
         sketchPersp: { st:'sketchPersp', prev:'sketchPerspPrev', empty:'sketchPerspEmpty', ok:'sketchPerspOk' },
+        sketchPersp2:{ st:'sketchPersp2',prev:'sketchPersp2Prev',empty:'sketchPersp2Empty',ok:'sketchPersp2Ok'},
+        sketchPersp3:{ st:'sketchPersp3',prev:'sketchPersp3Prev',empty:'sketchPersp3Empty',ok:'sketchPersp3Ok'},
         sketchPlan:  { st:'sketchPlan',  prev:'sketchPlanPrev',  empty:'sketchPlanEmpty',  ok:'sketchPlanOk'  },
         sketchElev:  { st:'sketchElev',  prev:'sketchElevPrev',  empty:'sketchElevEmpty',  ok:'sketchElevOk'  },
         sketchSect:  { st:'sketchSect',  prev:'sketchSectPrev',  empty:'sketchSectEmpty',  ok:'sketchSectOk'  },
@@ -501,7 +527,7 @@ function dragOver(e,id){ e.preventDefault(); document.getElementById(id).classLi
 function dragLeave(id){ document.getElementById(id).classList.remove('drag'); }
 function dropFile(e,type){
   e.preventDefault();
-  const zoneMap = { sketchPersp:'perspZone', sketchPlan:'planZone', sketchElev:'elevZone', sketchSect:'sectZone', sketchIso:'isoZone', sketchDetail:'detailZone', mood:'moodZone' };
+  const zoneMap = { sketchPersp:'perspZone', sketchPersp2:'persp2Zone', sketchPersp3:'persp3Zone', sketchPlan:'planZone', sketchElev:'elevZone', sketchSect:'sectZone', sketchIso:'isoZone', sketchDetail:'detailZone', mood:'moodZone' };
   const id = zoneMap[type] || 'moodZone';
   document.getElementById(id).classList.remove('drag');
   processFile(e.dataTransfer.files[0], type);
@@ -553,7 +579,7 @@ function buildCards() {
 // ── GENERATE ──
 async function startGen() {
   const brief = document.getElementById('brief').value.trim();
-  const hasSketch = state.sketchPersp || state.sketchPlan || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail;
+  const hasSketch = state.sketchPersp || state.sketchPersp2 || state.sketchPersp3 || state.sketchPlan || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail;
   if (!brief && !hasSketch) { log('⚠ Add a sketch or brief', 'error'); return; }
   if (state.active.size === 0) { log('⚠ Select at least one output', 'error'); return; }
   if (state.generating) return;
@@ -599,8 +625,8 @@ async function genOne(cfg, brief) {
   const exactMap = {
     plan: ['sketchPlan','floor plan (top view)'],
     perspective: ['sketchPersp','perspective'],
-    perspective2: ['sketchPersp','perspective'],
-    perspective3: ['sketchPersp','perspective'],
+    perspective2: ['sketchPersp2','perspective angle 2'],
+    perspective3: ['sketchPersp3','perspective angle 3'],
     elevation: ['sketchElev','elevation'],
     section: ['sketchSect','section'],
     blowup: ['sketchDetail','construction detail'],
@@ -615,7 +641,7 @@ async function genOne(cfg, brief) {
     primaryLabel = exactLabel;
   } else {
     // fallback: plan + perspective combined for design consistency
-    primary = state.sketchPlan || state.sketchPersp || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail || null;
+    primary = state.sketchPlan || state.sketchPersp || state.sketchPersp2 || state.sketchPersp3 || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail || null;
     secondary = (state.sketchPersp && state.sketchPersp !== primary) ? state.sketchPersp : (state.sketchPlan && state.sketchPlan !== primary ? state.sketchPlan : null);
     primaryLabel = 'available Plan and Perspective sketches (analyze them together to keep the design consistent)';
   }
