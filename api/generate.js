@@ -27,12 +27,23 @@ export default async function handler(req, res) {
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch { body = {}; }
   }
-  const { prompt = '', ratio = '16:9', sketches = [], refs = [] } = body || {};
+  const { prompt = '', ratio = '16:9', sketches = [], refs = [], mode = 'render' } = body || {};
 
   if (!prompt) {
     return res.status(400).json({ error: 'missing prompt' });
   }
 
+  // ── PROMPT MODE: cheap text model writes a ready-to-use image prompt ──
+  if (mode === 'prompt') {
+    try {
+      const text = await callTextModel(key, prompt);
+      return res.status(200).json({ text });
+    } catch (e) {
+      return res.status(502).json({ error: `prompt generation failed: ${e.message || e}` });
+    }
+  }
+
+  // ── RENDER MODE: image generation ──
   // build Gemini content parts
   const parts = [];
   if (Array.isArray(sketches) && sketches.length) {
@@ -112,3 +123,26 @@ function extractImage(data) {
   }
   return null;
 }
+
+// cheap text model — writes a ready-to-use image prompt (~0.04 baht/call)
+async function callTextModel(key, prompt) {
+  const model = 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7 },
+    }),
+  });
+  if (!r.ok) {
+    let d = '';
+    try { const j = await r.json(); d = j.error?.message || ''; } catch {}
+    throw new Error(`${r.status}: ${d || r.statusText}`);
+  }
+  const data = await r.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  return parts.map(p => p.text || '').join('').trim();
+}
+

@@ -507,6 +507,19 @@
     color: var(--muted); text-align: center; font-size: 0.85rem; padding: 40px;
   }
 
+  /* mode toggle */
+  .mode-toggle {
+    display: flex; flex-shrink: 0;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .mode-opt {
+    background: transparent; border: none; color: var(--muted);
+    font-family: inherit; font-size: 0.76rem; font-weight: 500;
+    padding: 9px 14px; cursor: pointer; transition: all .16s; white-space: nowrap;
+  }
+  .mode-opt:hover { color: var(--text); }
+  .mode-opt.active { background: var(--accent); color: #fff; }
 
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -581,6 +594,10 @@
     <nav class="tabs" id="tabs"></nav>
     <div class="tab-body" id="tabBody"></div>
     <div class="gen-bar">
+      <div class="mode-toggle" id="modeToggle">
+        <button class="mode-opt active" data-mode="render" onclick="setMode('render')">🖼 ภาพ</button>
+        <button class="mode-opt" data-mode="prompt" onclick="setMode('prompt')">📝 Prompt</button>
+      </div>
       <div class="sel-info" id="selInfo">ยังไม่ได้เลือก preset</div>
       <button class="btn-gen" id="btnGen" onclick="runGenerate()" disabled>
         <span>สร้างภาพ</span>
@@ -662,6 +679,7 @@ const state = {
   selected: new Set(),
   activeTab: 'model',
   outputs: [],  // {id, th, en, dataUrl} — รวมไว้ทำ board
+  mode: 'render', // 'render' = ภาพ | 'prompt' = ข้อความ
 };
 
 /* ════════════════ PRESET LIBRARY ════════════════
@@ -843,14 +861,27 @@ function togglePreset(id){
   updateSelInfo();
 }
 
+function setMode(m){
+  state.mode = m;
+  document.querySelectorAll('.mode-opt').forEach(b=>b.classList.toggle('active', b.dataset.mode===m));
+  updateSelInfo();
+}
+
 function updateSelInfo(){
   const n = state.selected.size;
   const info = document.getElementById('selInfo');
   const btn = document.getElementById('btnGen');
-  if(n===0){ info.innerHTML='ยังไม่ได้เลือก preset'; btn.disabled=true; }
-  else{
-    const names = [...state.selected].map(id=>findPreset(id)?.th).filter(Boolean).join(' · ');
-    info.innerHTML = `เลือก <b>${n}</b> รายการ — ${names}`;
+  const btnLabel = btn.querySelector('span');
+  // button label by mode
+  btnLabel.textContent = state.mode==='prompt' ? 'สร้าง Prompt' : 'สร้างภาพ';
+  if(n===0){ info.innerHTML='ยังไม่ได้เลือก preset'; btn.disabled=true; return; }
+  const names = [...state.selected].map(id=>findPreset(id)?.th).filter(Boolean).join(' · ');
+  info.innerHTML = `เลือก <b>${n}</b> รายการ — ${names}`;
+  if(state.mode==='prompt'){
+    // prompt mode doesn't strictly need an image
+    btn.disabled = false;
+    info.innerHTML += ' <span style="color:var(--muted)">· โหมด Prompt (ถูกมาก เอาไปสั่ง Gemini เอง)</span>';
+  } else {
     const hasImg = state.sketch.length>0 || state.ref.length>0;
     btn.disabled = !hasImg;
     if(!hasImg) info.innerHTML += ' <span style="color:var(--gold)">· อัปโหลดภาพก่อน</span>';
@@ -953,11 +984,38 @@ async function genOne(id){
   if(hasSketch) promptText += `\n\nReminder: keep geometry, proportions and layout strictly identical to the input sketch. Only the drawing style/output type changes.`;
   promptText += `\n\nOutput a single ${ratio} image. High detail, professional presentation quality. No watermark, no random text labels.`;
 
+  // in prompt mode, wrap as a request to WRITE an image-generation prompt (not generate)
+  if(state.mode==='prompt'){
+    promptText = `You are an expert prompt engineer for architectural AI image generation (Gemini / Nano Banana). Based on the task below, write ONE clean, ready-to-paste English image-generation prompt that the user can feed directly to Gemini to produce this result. Make it specific and vivid (composition, materials, lighting, style, ${ratio} aspect ratio) but concise. Output ONLY the prompt text — no preamble, no quotes, no explanation.\n\n--- TASK ---\n${promptText}`;
+  }
+
   // collect images (clean base64, no prefix)
   const sketches = state.sketch.map(s=>({mime:s.mime, data:s.b64}));
   const refs = state.ref.map(r=>({mime:r.mime, data:r.b64}));
 
   try{
+    if(state.mode==='prompt'){
+      // PROMPT MODE — ask text model to expand into a ready-to-use Gemini image prompt
+      const txt = await callProxyPrompt({ prompt:promptText });
+      document.getElementById('ld-'+id)?.remove();
+      st.textContent='เสร็จ'; st.className='rc-status done';
+      const card=document.getElementById('card-'+id);
+      const box=document.createElement('div');
+      box.style.cssText='padding:11px;';
+      const ta=document.createElement('textarea');
+      ta.value=txt; ta.readOnly=true;
+      ta.style.cssText='width:100%;min-height:120px;font-size:.72rem;line-height:1.5;background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:9px;resize:vertical;';
+      box.appendChild(ta);
+      const act=document.createElement('div');
+      act.className='rc-actions';
+      act.innerHTML=`<a href="#" onclick="copyText(this);return false;">⧉ คัดลอก</a>
+        <a href="#" onclick="reGen('${id}');return false;">↻ ทำใหม่</a>`;
+      box.appendChild(act);
+      card.appendChild(box);
+      return;
+    }
+
+    // RENDER MODE — generate image
     const out = await callProxy({ prompt:promptText, ratio, sketches, refs });
     if(out){
       const card=document.getElementById('card-'+id);
@@ -1003,6 +1061,28 @@ async function callProxy({prompt, ratio, sketches, refs}){
   }
   const data = await res.json();
   return data.image || null;
+}
+
+async function callProxyPrompt({prompt}){
+  const res = await fetch('/api/generate', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ prompt, mode:'prompt' })
+  });
+  if(!res.ok){
+    let detail='';
+    try{ const j=await res.json(); detail=j.error||j.message||''; }catch{}
+    throw new Error(`${res.status}: ${detail||res.statusText}`);
+  }
+  const data = await res.json();
+  return data.text || '(ไม่มีข้อความกลับมา)';
+}
+
+function copyText(a){
+  const ta=a.closest('div').parentElement.querySelector('textarea');
+  ta.select(); document.execCommand('copy');
+  navigator.clipboard?.writeText(ta.value).catch(()=>{});
+  toast('คัดลอก prompt แล้ว ✓');
 }
 
 function reGen(id){
