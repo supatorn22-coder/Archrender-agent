@@ -1,992 +1,1243 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Khangkan Render Agent</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400&family=Trirong:wght@300;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&display=swap');
 
   :root {
-    --bg:#151210; --surface:#1e1a17; --surface2:#262018; --border:#3a2e24;
-    --accent:#AF5B33; --accent-dim:#7a3f24; --cream:#e8ddd0; --muted:#7a6a5a;
-    --text:#d4c5b0; --green:#5a8a5a; --radius:8px;
+    --bg:        #14110e;
+    --surface:   #1d1814;
+    --surface2:  #26201a;
+    --surface3:  #2f271f;
+    --border:    #3a2e24;
+    --border-lt: #4a3a2c;
+    --accent:    #c2693b;
+    --accent-dim:#8a4628;
+    --accent-glow: rgba(194,105,59,0.15);
+    --clay:      #9a7b5f;
+    --sage:      #6f7d5e;
+    --cream:     #ece2d4;
+    --muted:     #8a7a68;
+    --muted-dk:  #6a5a48;
+    --text:      #d8c9b4;
+    --green:     #6f9568;
+    --red:       #bf5c4d;
+    --gold:      #c9a84b;
+    --radius:    7px;
   }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
   body {
-    background:var(--bg); color:var(--text);
-    font-family:'IBM Plex Sans Thai',sans-serif;
-    min-height:100vh; display:flex; flex-direction:column;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans Thai', sans-serif;
+    font-weight: 400;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
-  ::-webkit-scrollbar { width:4px; height:4px; }
-  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
 
-  /* HEADER */
+  /* ── HEADER ── */
   header {
-    padding:14px 18px; border-bottom:1px solid var(--border);
-    background:var(--surface); position:sticky; top:0; z-index:20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    z-index: 20;
   }
+  .brand { display: flex; align-items: baseline; gap: 11px; }
   .logo {
-    font-family:'Trirong',serif; font-weight:600; font-size:1.15rem;
-    color:var(--cream); letter-spacing:0.02em;
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 1.18rem;
+    color: var(--cream);
+    letter-spacing: 0.01em;
   }
-  .logo span { color:var(--accent); }
+  .logo b { color: var(--accent); font-weight: 900; }
+  .tagline {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-dk);
+  }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .key-status {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.64rem;
+    color: var(--muted);
+  }
+  .key-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); transition: background .3s; }
+  .key-dot.ok { background: var(--green); }
+  .icon-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: grid; place-items: center;
+    transition: all .18s;
+  }
+  .icon-btn:hover { color: var(--cream); border-color: var(--border-lt); }
 
-  /* TABS */
+  /* ── LAYOUT ── */
+  .app { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── LEFT PANEL ── */
+  .panel-left {
+    width: 320px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 16px 16px 24px;
+    gap: 14px;
+  }
+  .field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 7px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .field-label .num {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* upload zones */
+  .upload-zone {
+    position: relative;
+    border: 1.5px dashed var(--border-lt);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    padding: 16px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .18s;
+    overflow: hidden;
+  }
+  .upload-zone:hover { border-color: var(--accent-dim); background: var(--surface3); }
+  .upload-zone.drag { border-color: var(--accent); background: var(--accent-glow); }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .upload-ico { font-size: 1.25rem; margin-bottom: 5px; opacity: .8; }
+  .upload-t { font-size: 0.8rem; color: var(--text); font-weight: 500; }
+  .upload-s { font-size: 0.66rem; color: var(--muted-dk); margin-top: 2px; }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .thumb {
+    position: relative;
+    width: 54px; height: 54px;
+    border-radius: 5px; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .x {
+    position: absolute; top: 1px; right: 1px;
+    background: rgba(0,0,0,.7); color: #fff;
+    width: 15px; height: 15px; border-radius: 3px;
+    font-size: 0.6rem; display: grid; place-items: center;
+    cursor: pointer; border: none;
+  }
+
+  textarea, input[type=text], input[type=password] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.82rem;
+    padding: 9px 11px;
+    resize: vertical;
+    transition: border-color .18s;
+  }
+  textarea:focus, input:focus { outline: none; border-color: var(--accent-dim); }
+  textarea { min-height: 74px; line-height: 1.5; }
+  textarea::placeholder, input::placeholder { color: var(--muted-dk); }
+
+  .key-row { display: flex; gap: 6px; }
+  .key-row input { flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; }
+
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.8rem;
+    padding: 8px 11px;
+    cursor: pointer;
+  }
+  select:focus { outline: none; border-color: var(--accent-dim); }
+
+  .divider { height: 1px; background: var(--border); margin: 2px 0; }
+
+  /* ── CENTER ── */
+  .panel-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(194,105,59,0.04), transparent 60%),
+      var(--bg);
+  }
+
+  /* category tabs */
   .tabs {
-    display:flex; background:var(--surface);
-    border-bottom:1px solid var(--border);
-    position:sticky; top:53px; z-index:20;
+    display: flex;
+    gap: 2px;
+    padding: 12px 20px 0;
+    flex-shrink: 0;
   }
   .tab {
-    flex:1; padding:14px; text-align:center; cursor:pointer;
-    font-size:0.92rem; font-weight:500; color:var(--muted);
-    border-bottom:2px solid transparent; transition:all 0.2s;
-    display:flex; align-items:center; justify-content:center; gap:7px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.84rem;
+    font-weight: 500;
+    padding: 10px 17px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: all .16s;
+    position: relative;
   }
-  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .tab .count { font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--muted); }
-
-  /* PANELS */
-  .panel { display:none; flex:1; overflow-y:auto; padding:16px; }
-  .panel.active { display:block; }
-
-  .section-label {
-    font-family:'IBM Plex Mono',monospace; font-size:0.62rem;
-    letter-spacing:0.14em; color:var(--muted); text-transform:uppercase;
-    margin:18px 0 8px; padding-left:2px;
+  .tab .tab-ico { font-size: 0.95rem; }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--cream);
+    background: var(--surface);
+    border-color: var(--border);
   }
-  .section-label:first-child { margin-top:0; }
-
-  /* UPLOAD */
-  .upload-zone {
-    border:1.5px dashed var(--border); border-radius:var(--radius);
-    padding:18px 12px; text-align:center; cursor:pointer;
-    background:var(--surface2); position:relative; transition:all 0.2s;
+  .tab.active::after {
+    content:''; position: absolute; left: 0; right: 0; bottom: -1px;
+    height: 2px; background: var(--accent);
   }
-  .upload-zone.drag { border-color:var(--accent); background:#1f1610; }
-  .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-  .upload-icon { font-size:1.6rem; margin-bottom:6px; }
-  .upload-title { font-size:0.85rem; color:var(--cream); font-weight:500; }
-  .upload-sub { font-size:0.7rem; color:var(--muted); margin-top:3px; }
-  .upload-preview { width:100%; border-radius:6px; margin-top:4px; max-height:200px; object-fit:cover; display:block; }
-  .upload-ok { font-size:0.7rem; color:var(--green); margin-top:6px; font-family:'IBM Plex Mono',monospace; }
-
-  /* INPUTS */
-  textarea, input[type=password], input[type=text] {
-    width:100%; background:var(--surface2); border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--text);
-    font-family:'IBM Plex Sans Thai',sans-serif; font-size:0.88rem;
-    padding:12px 14px; transition:border-color 0.2s;
-  }
-  textarea { resize:vertical; min-height:90px; line-height:1.6; }
-  input[type=password], input[type=text] { font-family:'IBM Plex Mono',monospace; font-size:0.8rem; }
-  textarea:focus, input:focus { outline:none; border-color:var(--accent); }
-  textarea::placeholder, input::placeholder { color:var(--muted); }
-
-  .api-row { display:flex; gap:8px; }
-  .eye-btn {
-    background:var(--surface2); border:1px solid var(--border);
-    border-radius:var(--radius); color:var(--muted); cursor:pointer;
-    padding:0 14px; font-size:1rem;
+  .tab .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.58rem;
+    background: var(--surface3);
+    color: var(--muted);
+    padding: 1px 5px; border-radius: 8px;
   }
 
-  /* STYLE CHIPS */
-  .chips { display:flex; flex-wrap:wrap; gap:7px; }
-  .chip {
-    font-size:0.78rem; padding:7px 14px; border-radius:20px;
-    border:1px solid var(--border); cursor:pointer; color:var(--muted);
-    background:var(--surface2); transition:all 0.2s;
+  .tab-body {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    margin-top: -1px;
+    padding: 18px 20px 24px;
   }
-  .chip.active { border-color:var(--accent); color:var(--accent); background:#2a1a10; }
-
-  /* OUTPUT TOGGLE GRID */
-  .out-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .out-item {
-    display:flex; align-items:center; gap:8px;
-    background:var(--surface2); border:1px solid var(--border);
-    border-radius:var(--radius); padding:11px 12px; cursor:pointer;
-    transition:all 0.2s; user-select:none;
+  .tab-intro {
+    margin-bottom: 16px;
   }
-  .out-item.active { border-color:var(--accent); background:#2a1a10; }
-  .out-item .num { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--accent); }
-  .out-item .name { font-size:0.8rem; color:var(--cream); flex:1; }
-  .out-item .ic { font-size:0.85rem; }
-
-  /* GENERATE BUTTON */
-  .gen-btn {
-    width:100%; background:var(--accent); color:#fff; border:none;
-    border-radius:var(--radius); padding:16px;
-    font-family:'IBM Plex Sans Thai',sans-serif; font-size:0.95rem;
-    font-weight:600; cursor:pointer; margin-top:20px;
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    transition:background 0.2s;
+  .tab-intro h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.12rem;
+    color: var(--cream);
+    margin-bottom: 3px;
   }
-  .gen-btn:active { background:#c46a3d; }
-  .gen-btn:disabled { background:var(--accent-dim); }
+  .tab-intro p { font-size: 0.78rem; color: var(--muted); line-height: 1.55; max-width: 560px; }
 
-  /* OUTPUT TOOLBAR */
-  .out-toolbar {
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:14px;
+  /* preset grid */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+    gap: 10px;
   }
-  .out-toolbar-title { font-family:'IBM Plex Mono',monospace; font-size:0.66rem; color:var(--muted); letter-spacing:0.1em; }
-  .out-actions { display:flex; gap:8px; }
-  .icon-btn {
-    background:var(--surface2); border:1px solid var(--border);
-    border-radius:6px; color:var(--muted); cursor:pointer;
-    padding:7px 12px; font-size:0.74rem;
+  .preset {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 13px 13px 12px;
+    cursor: pointer;
+    transition: all .16s;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
   }
+  .preset::before {
+    content:''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent); transform: scaleY(0); transform-origin: top;
+    transition: transform .18s;
+  }
+  .preset:hover { border-color: var(--border-lt); background: var(--surface2); transform: translateY(-1px); }
+  .preset:hover::before { transform: scaleY(1); }
+  .preset.sel { border-color: var(--accent-dim); background: var(--surface2); }
+  .preset.sel::before { transform: scaleY(1); }
+  .preset .p-ico { font-size: 1.15rem; margin-bottom: 7px; display: block; }
+  .preset .p-name { font-size: 0.82rem; font-weight: 600; color: var(--cream); line-height: 1.3; }
+  .preset .p-name .th { display: block; font-weight: 400; font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+  .preset .p-desc { font-size: 0.68rem; color: var(--muted-dk); margin-top: 6px; line-height: 1.45; }
+  .preset .p-check {
+    position: absolute; top: 10px; right: 10px;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid var(--border-lt);
+    display: grid; place-items: center;
+    font-size: 0.6rem; color: var(--bg);
+    transition: all .16s;
+  }
+  .preset.sel .p-check { background: var(--accent); border-color: var(--accent); }
+  .preset.sel .p-check::after { content:'✓'; color:#fff; }
 
-  /* RENDER CARD */
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:14px; }
-  .card-head { display:flex; align-items:center; gap:9px; padding:12px 14px; border-bottom:1px solid var(--border); }
-  .card-num { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; color:var(--accent); background:#2a1a10; padding:3px 7px; border-radius:3px; }
-  .card-title { font-size:0.88rem; color:var(--cream); font-weight:500; flex:1; }
-  .card-status { font-size:0.62rem; font-family:'IBM Plex Mono',monospace; }
-  .st-pending { color:var(--muted); } .st-generating { color:#c8a84b; }
-  .st-done { color:var(--green); } .st-error { color:#c45a5a; }
+  .group-head {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-dk);
+    margin: 20px 0 10px;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .group-head::after { content:''; flex:1; height:1px; background: var(--border); }
+  .group-head:first-child { margin-top: 4px; }
 
-  .progress { height:2px; background:var(--border); overflow:hidden; position:relative; }
-  .progress-shimmer { position:absolute; height:100%; width:40%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:shimmer 1.4s infinite; }
-  @keyframes shimmer { 0%{left:-40%} 100%{left:140%} }
-  .progress-done { height:100%; width:100%; background:var(--green); }
-  .progress-err { height:100%; width:100%; background:#c45a5a; }
+  /* ── RIGHT / RESULTS ── */
+  .panel-right {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .right-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .right-head .t {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .results {
+    flex: 1; overflow-y: auto; padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .result-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .result-card .rc-head {
+    padding: 8px 11px; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-card .rc-name { font-size: 0.74rem; color: var(--cream); font-weight: 500; }
+  .result-card .rc-status { font-family:'IBM Plex Mono',monospace; font-size: 0.6rem; }
+  .rc-status.pending { color: var(--gold); }
+  .rc-status.done { color: var(--green); }
+  .rc-status.err { color: var(--red); }
+  .result-card img { width: 100%; display: block; cursor: zoom-in; }
+  .result-card .rc-loading {
+    height: 130px; display: grid; place-items: center;
+    color: var(--muted-dk); font-size: 0.72rem;
+    background: repeating-linear-gradient(45deg, var(--surface2), var(--surface2) 10px, var(--surface3) 10px, var(--surface3) 20px);
+    background-size: 200% 200%;
+    animation: shimmer 2s linear infinite;
+  }
+  @keyframes shimmer { from{background-position:0 0} to{background-position:40px 40px} }
+  .rc-actions { padding: 7px 11px; display: flex; gap: 7px; }
+  .rc-actions a {
+    font-size: 0.66rem; color: var(--accent); text-decoration: none;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .rc-actions a:hover { color: var(--cream); }
+  .empty-state {
+    flex: 1; display: grid; place-items: center; padding: 30px;
+    text-align: center; color: var(--muted-dk);
+  }
+  .empty-state .e-ico { font-size: 1.8rem; opacity:.4; margin-bottom: 10px; }
+  .empty-state p { font-size: 0.74rem; line-height: 1.6; }
 
-  .card-body { background:var(--surface2); min-height:160px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .card-body img { width:100%; height:auto; display:block; }
-  .card-msg { padding:18px; font-size:0.78rem; font-family:'IBM Plex Mono',monospace; line-height:1.7; align-self:flex-start; width:100%; }
-  .card-foot { padding:10px 14px; border-top:1px solid var(--border); }
-  .dl-btn { width:100%; background:none; border:1px solid var(--border); border-radius:6px; color:var(--muted); cursor:pointer; padding:9px; font-size:0.74rem; }
-  .dl-btn:disabled { opacity:0.3; }
+  /* ── FOOTER BAR (generate) ── */
+  .gen-bar {
+    flex-shrink: 0;
+    padding: 13px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .sel-info { font-size: 0.74rem; color: var(--muted); flex: 1; }
+  .sel-info b { color: var(--cream); font-weight: 600; }
+  .btn-gen {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 11px 26px;
+    cursor: pointer;
+    transition: all .16s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-gen:hover:not(:disabled) { background: #d4774a; transform: translateY(-1px); }
+  .btn-gen:disabled { opacity: .4; cursor: not-allowed; }
 
-  .empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:300px; gap:12px; color:var(--muted); }
-  .empty-icon { font-size:3rem; opacity:0.25; }
-  .empty-title { font-family:'Trirong',serif; font-size:1.1rem; color:var(--border); }
-  .empty-sub { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; letter-spacing:0.08em; }
+  /* modal */
+  .modal {
+    position: fixed; inset: 0; background: rgba(10,8,6,.88);
+    display: none; place-items: center; z-index: 100; padding: 30px;
+  }
+  .modal.show { display: grid; }
+  .modal img { max-width: 90vw; max-height: 90vh; border-radius: 6px; }
+  .modal .close { position: absolute; top: 20px; right: 26px; color: #fff; font-size: 1.6rem; cursor: pointer; background:none;border:none; }
 
-  /* LOG */
-  .log { background:#0f0d0b; border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-top:14px; max-height:160px; overflow-y:auto; }
-  .log-line { font-family:'IBM Plex Mono',monospace; font-size:0.66rem; padding:2px 0; line-height:1.6; }
-  .lg-info{color:var(--muted)} .lg-success{color:var(--green)} .lg-warn{color:#c8a84b} .lg-error{color:#c45a5a}
+  /* settings drawer */
+  .drawer {
+    position: fixed; top:0; right:0; bottom:0; width: 340px;
+    background: var(--surface); border-left: 1px solid var(--border);
+    transform: translateX(100%); transition: transform .25s; z-index: 50;
+    padding: 20px; overflow-y: auto;
+  }
+  .drawer.show { transform: translateX(0); }
+  .drawer h3 { font-family:'Fraunces',serif; color: var(--cream); font-size: 1.05rem; margin-bottom: 16px; }
+  .drawer .field-label { margin-top: 16px; }
+  .help { font-size: 0.7rem; color: var(--muted-dk); line-height: 1.55; margin-top: 6px; }
+  .help a { color: var(--accent); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--surface3); border: 1px solid var(--border-lt);
+    color: var(--text); padding: 11px 20px; border-radius: var(--radius);
+    font-size: 0.8rem; z-index: 200; transition: transform .3s; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
   /* ── BOARD COMPOSER ── */
-  #panelBoard { display:none; flex-direction:column; height:100%; overflow:hidden; }
-  #panelBoard.active { display:flex; }
-  .board-controls { padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface); }
-  .board-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
-  .board-lbl { font-family:'IBM Plex Mono',monospace; font-size:0.6rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; min-width:54px; }
-  .board-select, .board-input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:5px; color:var(--text); font-size:0.74rem; padding:6px 9px; font-family:'IBM Plex Sans Thai',sans-serif; }
-  .board-select:focus, .board-input:focus { outline:none; border-color:var(--accent); }
-  .board-hint { font-size:0.62rem; color:var(--muted); margin-top:3px; line-height:1.5; }
-  .board-wrap { flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; background:#0e0c0a; }
-  .board-canvas { position:relative; background:#fbfaf7; box-shadow:0 4px 30px rgba(0,0,0,0.5); flex-shrink:0; transform-origin:top center; }
-  .board-item { position:absolute; overflow:hidden; cursor:move; border:1px solid transparent; box-sizing:border-box; }
-  .board-item:hover { border-color:var(--accent); }
-  .board-item.selected { border-color:var(--accent); box-shadow:0 0 0 2px rgba(175,91,51,0.4); }
-  .board-item img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
-  .board-item .resize-h { position:absolute; right:0; bottom:0; width:16px; height:16px; background:var(--accent); cursor:nwse-resize; border-radius:3px 0 0 0; opacity:0; }
-  .board-item:hover .resize-h, .board-item.selected .resize-h { opacity:0.9; }
-  .board-cap { position:absolute; left:0; bottom:0; right:0; background:rgba(0,0,0,0.5); color:#fff; font-size:8px; padding:2px 4px; font-family:'IBM Plex Mono',monospace; pointer-events:none; }
-  .board-text { position:absolute; cursor:move; color:#2a2a2a; font-family:'Trirong',serif; padding:2px; border:1px solid transparent; box-sizing:border-box; }
-  .board-text:hover { border-color:var(--accent); }
-  .board-text.selected { border-color:var(--accent); }
-  .board-text[contenteditable="true"] { outline:2px solid var(--accent); cursor:text; background:rgba(255,255,255,0.8); }
-  .board-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:300px; gap:10px; color:#bbb; width:100%; }
-  .copy-prompt-btn { margin:8px; padding:6px 12px; background:#2a1a10; border:1px solid var(--accent); border-radius:5px; color:var(--accent); cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; }
-  .copy-prompt-btn:hover { background:var(--accent); color:#fff; }
+  .board-overlay {
+    position: fixed; inset: 0; z-index: 90;
+    background: var(--bg);
+    display: none; flex-direction: column;
+  }
+  .board-overlay.show { display: flex; }
+  .board-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 22px; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .board-title { font-family:'Fraunces',serif; font-weight:600; color: var(--cream); font-size: 1.02rem; }
+  .board-controls { display: flex; gap: 9px; align-items: center; }
+  .board-controls select {
+    width: auto; padding: 8px 12px; font-size: 0.78rem;
+  }
+  .board-btn {
+    background: var(--surface2); border: 1px solid var(--border-lt);
+    color: var(--text); font-family: inherit; font-size: 0.76rem;
+    padding: 8px 15px; border-radius: var(--radius); cursor: pointer;
+    transition: all .16s;
+  }
+  .board-btn:hover { background: var(--surface3); color: var(--cream); }
+  .board-btn.ghost { border-color: var(--border); color: var(--muted); }
+  .board-stage {
+    flex: 1; overflow: auto; padding: 28px;
+    display: grid; place-items: center;
+    background:
+      radial-gradient(circle at 50% 30%, rgba(194,105,59,0.05), transparent 60%),
+      var(--bg);
+  }
+  .board-canvas {
+    position: relative;
+    background: #f4efe6;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .board-item {
+    position: absolute;
+    overflow: hidden;
+    border: 1px solid rgba(60,46,36,.18);
+    background: #fff;
+    cursor: grab;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  .board-item:active { cursor: grabbing; }
+  .board-item img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .board-item .bi-label {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(transparent, rgba(20,15,10,.78));
+    color: #f4efe6; font-size: 10px; padding: 14px 8px 5px;
+    font-family: 'IBM Plex Mono', monospace; letter-spacing: .04em;
+  }
+  .board-item .bi-resize {
+    position: absolute; right: 0; bottom: 0; width: 16px; height: 16px;
+    background: var(--accent); cursor: nwse-resize; opacity: 0; transition: opacity .15s;
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  }
+  .board-item:hover .bi-resize { opacity: .9; }
+  .board-header-block {
+    position: absolute; cursor: grab;
+    color: #2a2018; padding: 4px;
+  }
+  .board-header-block .bh-title {
+    font-family: 'Fraunces', serif; font-weight: 900; line-height: 1.05;
+  }
+  .board-header-block .bh-sub {
+    font-family: 'IBM Plex Mono', monospace; color: #7a5a3a; margin-top: 3px;
+  }
+  .board-empty {
+    color: var(--muted); text-align: center; font-size: 0.85rem; padding: 40px;
+  }
+
+
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-lt); }
+
+  @media (max-width: 1100px) {
+    .panel-left { width: 270px; }
+    .panel-right { width: 250px; }
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">khangkan <span>·</span> render agent</div>
+  <div class="brand">
+    <span class="logo">khangkan<b>.</b></span>
+    <span class="tagline">Render Agent</span>
+  </div>
+  <div class="header-right">
+    <div class="key-status"><span class="key-dot ok"></span><span>gemini · server</span></div>
+    <button class="icon-btn" onclick="toggleDrawer()" title="Settings">⚙</button>
+  </div>
 </header>
 
-<div class="tabs">
-  <div class="tab active" id="tabInput" onclick="switchTab('input')">⚙️ Input</div>
-  <div class="tab" id="tabOutput" onclick="switchTab('output')">🖼 Output <span class="count" id="tabCount">(0/7)</span></div>
-  <div class="tab" id="tabBoard" onclick="switchTab('board')">📐 Board</div>
-</div>
+<div class="app">
 
-<!-- INPUT PANEL -->
-<div class="panel active" id="panelInput">
-
-  <div class="section-label">Sketch Inputs (อัปโหลดเท่าที่มี)</div>
-  <div class="upload-zone" id="perspZone"
-       ondragover="dragOver(event,'perspZone')" ondragleave="dragLeave('perspZone')" ondrop="dropFile(event,'sketchPersp')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPersp')">
-    <div id="sketchPerspEmpty">
-      <div class="upload-icon">🏠</div>
-      <div class="upload-title">Sketch · Perspective</div>
-      <div class="upload-sub">ภาพทัศนียภาพ / 3D sketch</div>
+  <!-- LEFT: INPUTS -->
+  <aside class="panel-left">
+    <div>
+      <div class="field-label"><span class="num">01</span> Sketch / Plan</div>
+      <div class="upload-zone" id="z-sketch">
+        <input type="file" accept="image/*" onchange="onFiles(event,'sketch')">
+        <div class="upload-ico">📐</div>
+        <div class="upload-t">วางสเก็ตหรือแปลน</div>
+        <div class="upload-s">plan · perspective · CAD · elevation</div>
+      </div>
+      <div class="thumbs" id="th-sketch"></div>
     </div>
-    <img id="sketchPerspPrev" class="upload-preview" style="display:none">
-    <div id="sketchPerspOk" class="upload-ok" style="display:none">Perspective ✓</div>
-  </div>
 
-  <div class="upload-zone" id="persp2Zone"
-       ondragover="dragOver(event,'persp2Zone')" ondragleave="dragLeave('persp2Zone')" ondrop="dropFile(event,'sketchPersp2')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPersp2')">
-    <div id="sketchPersp2Empty">
-      <div class="upload-icon">🏠</div>
-      <div class="upload-title">Sketch · Perspective 2</div>
-      <div class="upload-sub">มุมที่ 2 (ถ้ามี)</div>
+    <div>
+      <div class="field-label"><span class="num">02</span> Reference / Mood</div>
+      <div class="upload-zone" id="z-ref">
+        <input type="file" accept="image/*" multiple onchange="onFiles(event,'ref')">
+        <div class="upload-ico">🎨</div>
+        <div class="upload-t">วางภาพอ้างอิง</div>
+        <div class="upload-s">style · material · atmosphere</div>
+      </div>
+      <div class="thumbs" id="th-ref"></div>
     </div>
-    <img id="sketchPersp2Prev" class="upload-preview" style="display:none">
-    <div id="sketchPersp2Ok" class="upload-ok" style="display:none">Perspective 2 ✓</div>
-  </div>
 
-  <div class="upload-zone" id="persp3Zone"
-       ondragover="dragOver(event,'persp3Zone')" ondragleave="dragLeave('persp3Zone')" ondrop="dropFile(event,'sketchPersp3')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPersp3')">
-    <div id="sketchPersp3Empty">
-      <div class="upload-icon">🏠</div>
-      <div class="upload-title">Sketch · Perspective 3</div>
-      <div class="upload-sub">มุมที่ 3 / มุมสูง (ถ้ามี)</div>
+    <div class="divider"></div>
+
+    <div>
+      <div class="field-label"><span class="num">03</span> Brief เพิ่มเติม</div>
+      <textarea id="brief" placeholder="อธิบายโปรเจกต์ / สิ่งที่อยากเน้น&#10;เช่น คอร์ตยาร์ดบ้านพักตากอากาศ tropical modern ไม้สัก+ หินกรวด แสงเช้า"></textarea>
     </div>
-    <img id="sketchPersp3Prev" class="upload-preview" style="display:none">
-    <div id="sketchPersp3Ok" class="upload-ok" style="display:none">Perspective 3 ✓</div>
-  </div>
 
-  <div class="upload-zone" id="planZone"
-       ondragover="dragOver(event,'planZone')" ondragleave="dragLeave('planZone')" ondrop="dropFile(event,'sketchPlan')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchPlan')">
-    <div id="sketchPlanEmpty">
-      <div class="upload-icon">🗺</div>
-      <div class="upload-title">Sketch · Plan (Top View)</div>
-      <div class="upload-sub">ผังพื้น มองจากด้านบน — ช่วยให้ Plan แม่นขึ้น</div>
-    </div>
-    <img id="sketchPlanPrev" class="upload-preview" style="display:none">
-    <div id="sketchPlanOk" class="upload-ok" style="display:none">Plan ✓</div>
-  </div>
-
-  <div class="upload-zone" id="elevZone"
-       ondragover="dragOver(event,'elevZone')" ondragleave="dragLeave('elevZone')" ondrop="dropFile(event,'sketchElev')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchElev')">
-    <div id="sketchElevEmpty">
-      <div class="upload-icon">📏</div>
-      <div class="upload-title">Sketch · Elevation</div>
-      <div class="upload-sub">รูปด้าน (ถ้ามี)</div>
-    </div>
-    <img id="sketchElevPrev" class="upload-preview" style="display:none">
-    <div id="sketchElevOk" class="upload-ok" style="display:none">Elevation ✓</div>
-  </div>
-
-  <div class="upload-zone" id="sectZone"
-       ondragover="dragOver(event,'sectZone')" ondragleave="dragLeave('sectZone')" ondrop="dropFile(event,'sketchSect')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchSect')">
-    <div id="sketchSectEmpty">
-      <div class="upload-icon">✂️</div>
-      <div class="upload-title">Sketch · Section</div>
-      <div class="upload-sub">รูปตัด (ถ้ามี)</div>
-    </div>
-    <img id="sketchSectPrev" class="upload-preview" style="display:none">
-    <div id="sketchSectOk" class="upload-ok" style="display:none">Section ✓</div>
-  </div>
-
-  <div class="upload-zone" id="isoZone"
-       ondragover="dragOver(event,'isoZone')" ondragleave="dragLeave('isoZone')" ondrop="dropFile(event,'sketchIso')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchIso')">
-    <div id="sketchIsoEmpty">
-      <div class="upload-icon">📦</div>
-      <div class="upload-title">Sketch · Isometric</div>
-      <div class="upload-sub">ภาพ 3D ไอโซเมตริก (ถ้ามี)</div>
-    </div>
-    <img id="sketchIsoPrev" class="upload-preview" style="display:none">
-    <div id="sketchIsoOk" class="upload-ok" style="display:none">Isometric ✓</div>
-  </div>
-
-  <div class="upload-zone" id="detailZone"
-       ondragover="dragOver(event,'detailZone')" ondragleave="dragLeave('detailZone')" ondrop="dropFile(event,'sketchDetail')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'sketchDetail')">
-    <div id="sketchDetailEmpty">
-      <div class="upload-icon">🔍</div>
-      <div class="upload-title">Sketch · Detail</div>
-      <div class="upload-sub">แบบ detail / construction (ถ้ามี)</div>
-    </div>
-    <img id="sketchDetailPrev" class="upload-preview" style="display:none">
-    <div id="sketchDetailOk" class="upload-ok" style="display:none">Detail ✓</div>
-  </div>
-
-  <div class="section-label">Reference Mood Image</div>
-  <div class="upload-zone" id="moodZone"
-       ondragover="dragOver(event,'moodZone')" ondragleave="dragLeave('moodZone')" ondrop="dropFile(event,'mood')">
-    <input type="file" accept="image/*" onchange="loadImg(event,'mood')">
-    <div id="moodEmpty">
-      <div class="upload-icon">🎨</div>
-      <div class="upload-title">Drop Mood Reference</div>
-      <div class="upload-sub">ใช้เป็นโทนสี/บรรยากาศเท่านั้น (ไม่ลอกหน้าตา)</div>
-    </div>
-    <img id="moodPrev" class="upload-preview" style="display:none">
-    <div id="moodOk" class="upload-ok" style="display:none">Mood ref loaded ✓</div>
-  </div>
-
-  <div class="section-label">Design Brief</div>
-  <textarea id="brief" placeholder="Describe the project...&#10;e.g. Thai contemporary house, teak wood cladding, split skillion roof, tropical garden, warm natural lighting"></textarea>
-
-  <div class="section-label">Render Style</div>
-  <div class="chips" id="styleChips">
-    <div class="chip active" data-style="Photorealistic CGI">Photorealistic</div>
-    <div class="chip" data-style="Architectural watercolor painting">Watercolor</div>
-    <div class="chip" data-style="Pencil hand drawing rendering">Pencil</div>
-    <div class="chip" data-style="Clean architectural line art sketch">Sketch Art</div>
-    <div class="chip" data-style="Night cinematic render with artificial lighting">Night</div>
-  </div>
-
-  <div class="section-label">Output Mode</div>
-  <div class="chips" id="modeChips">
-    <div class="chip active" data-mode="render">🖼 Render (สร้างภาพ)</div>
-    <div class="chip" data-mode="prompt">📝 Prompt (ประหยัด token)</div>
-  </div>
-
-  <div class="section-label">Output Views</div>
-  <div class="out-grid" id="outGrid"></div>
-
-  <div class="section-label">Material Board แนว</div>
-  <div class="chips" id="matOrientChips">
-    <div class="chip active" data-orient="vertical">แนวตั้ง ⬍</div>
-    <div class="chip" data-orient="horizontal">แนวนอน ⬌</div>
-  </div>
-
-  <button class="gen-btn" id="genBtn" onclick="startGen()">⚡ Generate All Renders</button>
-
-  <div class="log" id="logInput"></div>
-</div>
-
-<!-- OUTPUT PANEL -->
-<div class="panel" id="panelOutput">
-  <div class="out-toolbar">
-    <span class="out-toolbar-title">RENDER OUTPUT BOARD</span>
-    <div class="out-actions">
-      <button class="icon-btn" onclick="downloadAll()">⬇ All</button>
-      <button class="icon-btn" onclick="clearAll()">✕ Clear</button>
-    </div>
-  </div>
-  <div id="cards">
-    <div class="empty" id="emptyState">
-      <div class="empty-icon">🏗</div>
-      <div class="empty-title">Awaiting Input</div>
-      <div class="empty-sub">Upload sketch · Write brief · Generate</div>
-    </div>
-  </div>
-</div>
-
-<!-- BOARD PANEL -->
-<div class="panel" id="panelBoard">
-  <div class="out-toolbar">
-    <span class="out-toolbar-title">PRESENTATION BOARD</span>
-    <div class="out-actions">
-      <button class="icon-btn" onclick="autoLayout()">✨ Auto</button>
-      <button class="icon-btn" onclick="downloadBoardPNG()">⬇ PNG</button>
-      <button class="icon-btn" onclick="downloadSeparate()">⬇ แยกชิ้น</button>
-    </div>
-  </div>
-
-  <div class="board-controls">
-    <div class="board-row">
-      <span class="board-lbl">Layout</span>
-      <select id="boardTemplate" class="board-select" onchange="applyTemplate()">
-        <option value="ekkapong-pro">Pro Board · Operable Wall (ภาพ 2) ⭐</option>
-        <option value="portrait-hero">Portrait · Hero + Grid (ภาพ 1,4)</option>
-        <option value="portrait-full">Portrait · Full Board (ภาพ 3)</option>
-        <option value="landscape-pro">Landscape · Pro Board</option>
-        <option value="grid-simple">Simple Grid</option>
+    <div>
+      <div class="field-label">Aspect ratio</div>
+      <select id="ratio">
+        <option value="16:9">16:9 · Landscape (board)</option>
+        <option value="4:3">4:3 · Classic</option>
+        <option value="1:1">1:1 · Square</option>
+        <option value="3:4">3:4 · Portrait</option>
+        <option value="9:16">9:16 · Vertical</option>
       </select>
     </div>
-    <div class="board-row">
-      <span class="board-lbl">Title</span>
-      <input id="boardTitle" class="board-input" value="ekkapong" oninput="renderBoardTexts()">
-    </div>
-    <div class="board-row">
-      <span class="board-lbl">Subtitle</span>
-      <input id="boardSub" class="board-input" value="Architecture · Landscape · Interior" oninput="renderBoardTexts()">
-    </div>
-    <div class="board-hint">💡 ลากภาพเพื่อย้าย · ลากมุมขวาล่างเพื่อปรับขนาด · ดับเบิลคลิกข้อความเพื่อแก้</div>
-  </div>
+  </aside>
 
-  <div class="board-wrap" id="boardWrap">
-    <div class="board-canvas" id="boardCanvas"></div>
-  </div>
+  <!-- CENTER: CATEGORIES + PRESETS -->
+  <main class="panel-center">
+    <nav class="tabs" id="tabs"></nav>
+    <div class="tab-body" id="tabBody"></div>
+    <div class="gen-bar">
+      <div class="sel-info" id="selInfo">ยังไม่ได้เลือก preset</div>
+      <button class="btn-gen" id="btnGen" onclick="runGenerate()" disabled>
+        <span>สร้างภาพ</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- RIGHT: RESULTS -->
+  <aside class="panel-right">
+    <div class="right-head">
+      <span class="t">Output <span id="outCount" style="color:var(--accent)"></span></span>
+      <div style="display:flex;gap:6px;">
+        <button class="icon-btn" onclick="openBoard()" title="จัด Board รวม" style="width:26px;height:26px;font-size:.7rem;">▦</button>
+        <button class="icon-btn" onclick="clearResults()" title="ล้าง" style="width:26px;height:26px;font-size:.7rem;">🗑</button>
+      </div>
+    </div>
+    <div class="results" id="results">
+      <div class="empty-state" id="emptyState">
+        <div>
+          <div class="e-ico">▦</div>
+          <p>เลือก preset แล้วกด "สร้างภาพ"<br>ผลลัพธ์จะปรากฏที่นี่</p>
+        </div>
+      </div>
+    </div>
+  </aside>
 </div>
 
+<!-- settings drawer -->
+<div class="drawer" id="drawer">
+  <h3>ตั้งค่า</h3>
+  <div class="field-label">API Key</div>
+  <p class="help">
+    คีย์ Gemini เก็บไว้ฝั่ง server แล้ว (env var <b style="color:var(--text)">GEMINI_API_KEY</b> บน Vercel) — ไม่ต้องใส่ในหน้านี้ ปลอดภัย ไม่หลุดในเบราว์เซอร์<br><br>
+    ถ้ายังไม่ได้ตั้ง: Vercel → Project → Settings → Environment Variables → เพิ่ม <b style="color:var(--text)">GEMINI_API_KEY</b> แล้ว Redeploy
+  </p>
+  <div class="divider" style="margin:20px 0;"></div>
+  <p class="help">
+    <b style="color:var(--text)">Khangkan Render Agent v2</b><br><br>
+    4 หมวดงาน: Model · Diagram · Plan · Render/Edit<br>
+    แต่ละ preset = prompt สำเร็จรูปที่ปรับให้เข้ากับ Nano Banana (Gemini image)<br><br>
+    ใส่ภาพ sketch/plan + reference แล้วเลือก preset ได้หลายอันพร้อมกัน
+  </p>
+</div>
+
+<div class="modal" id="modal" onclick="this.classList.remove('show')">
+  <button class="close">✕</button>
+  <img id="modalImg" src="">
+</div>
+
+<!-- BOARD COMPOSER -->
+<div class="board-overlay" id="boardOverlay">
+  <div class="board-top">
+    <div class="board-title">▦ Board · รวม Output สุดท้าย</div>
+    <div class="board-controls">
+      <select id="boardLayout" onchange="renderBoard()">
+        <option value="portrait-hero">Portrait Hero</option>
+        <option value="portrait-full">Portrait Full</option>
+        <option value="landscape-pro">Landscape Pro</option>
+        <option value="grid">Simple Grid</option>
+      </select>
+      <button class="board-btn" onclick="downloadBoardPNG()">↓ PNG รวม</button>
+      <button class="board-btn" onclick="downloadBoardSeparate()">↓ แยกชิ้น</button>
+      <button class="board-btn ghost" onclick="closeBoard()">ปิด</button>
+    </div>
+  </div>
+  <div class="board-stage" id="boardStage">
+    <div class="board-canvas" id="boardCanvas"></div>
+  </div>
+  <div class="board-hint">ลากเพื่อย้าย · ลากมุมขวาล่างปรับขนาด · ดับเบิลคลิกหัวข้อเพื่อแก้ไข</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-// ── CONFIG ──
-const OUTPUTS = [
-  { key:'plan',        num:'01', label:'Plan View',      ic:'🗺',  view:"a SITE/FLOOR PLAN, strict top-down orthographic view, as a richly detailed hand-drawn watercolor-and-ink drawing: dense fine pen lines for walls, furniture and fixtures, floor textures (wood-plank lines, tile grids, gravel speckle), finished with layered watercolor. Trees seen from above drawn with detailed radiating branch and leaf-cluster linework (not plain circles), garden areas with individual plant strokes, stone textures hatched. Thin dimension lines with arrowheads, room labels, scale note. Highly detailed top-down 2D plan, NOT 3D, NOT axonometric." },
-  { key:'perspective', num:'02', label:'Perspective',    ic:'🏠',  view:"a realistic CINEMATIC architectural PERSPECTIVE of the building at eye level (front three-quarter angle): photoreal natural materials, warm golden-hour daylight, lush detailed planting, water/deck, atmospheric depth and shallow depth-of-field — with the upper edges softly dissolving into delicate pencil sketch lines and light watercolor (artistic render-sketch hybrid)." },
-  { key:'perspective2',num:'2b', label:'Perspective · Angle 2', ic:'🏠', view:"a realistic CINEMATIC architectural PERSPECTIVE of the SAME building from a DIFFERENT angle (opposite/rear three-quarter), photoreal materials and soft daylight, edges dissolving into subtle pencil sketch and light watercolor (render-sketch hybrid)." },
-  { key:'perspective3',num:'2c', label:'Perspective · Aerial', ic:'🏠', view:"a realistic CINEMATIC slightly elevated bird's-eye PERSPECTIVE of the whole building and garden, photoreal materials and atmospheric daylight, far edges dissolving into subtle pencil sketch and light watercolor (render-sketch hybrid). Shows full site context." },
-  { key:'section',     num:'03', label:'Section',        ic:'✂️', view:"an architectural SECTION (vertical cut) as a richly detailed hand-drawn watercolor-and-ink drawing: dense fine pen linework with cross-hatched poché for cut walls, visible material textures (wood grain, board-form concrete, stone hatching), interior furniture in section, structural columns and footings with detail. Surrounding trees drawn leaf-by-leaf with bark-textured trunks and hatched shadows. Thin dimension lines with arrowheads, label 'SECTION A-A'. Highly detailed, NOT 3D, NOT photorealistic." },
-  { key:'elevation',   num:'04', label:'Elevation',      ic:'📏',  view:"an architectural ELEVATION (flat orthographic facade) as a richly detailed hand-drawn watercolor-and-ink drawing: dense fine pen lines showing every timber plank with wood-grain texture, board-form concrete lines, window mullions and glass reflections, finished with layered watercolor. In front, detailed trees drawn leaf-by-leaf with bark-textured trunks and cross-hatched shadows, plus grasses and shrubs with individual blade/leaf strokes. Thin dimension lines with arrowheads, label 'FRONT ELEVATION'. Highly detailed, NOT 3D, NOT photorealistic." },
-  { key:'blowup',      num:'05', label:'Blowup Detail',  ic:'🔍',  view:"an architectural DETAIL drawing (blow-up construction detail, e.g. roof eave / rain chain / wall section) as a fine pencil/ink technical drawing with light watercolor washes (warm wood, grey concrete) on off-white paper. Show layered construction components with thin leader lines and labels on the side, material hatching. Precise elegant hand-drawn working-detail aesthetic matching the watercolor board style." },
-  { key:'material',    num:'06', label:'Material Board', ic:'🪵',  view:"a MATERIAL PALETTE board, __MAT_ORIENT__, on warm off-white paper matching a watercolor architecture sheet. Show 6 material swatch samples (square or circular) with labels: Natural Wood, White Concrete, Glass, Corrugated Grey Metal, Natural Stone, Sage Greenery. Realistic but softly-rendered texture samples in a natural sage-wood-grey palette. Elegant heading 'MATERIAL PALETTE'. Labels legible." },
-  { key:'planting',    num:'07', label:'Planting Plan',  ic:'🌿',  view:"a PLANT LIST / planting board as a hand-drawn watercolor illustration on off-white paper: a row of individual plants, grasses, shrubs and rocks each painted in loose sage-green watercolor with pencil outlines, each labeled with its botanical/common name below (e.g. Foothill Sedge, Berkeley Sedge, Manzanita, Boulder). Elegant heading 'PLANT LIST'. Matches the watercolor architecture board style, labels legible." },
+/* ════════════════ STATE ════════════════ */
+const state = {
+  sketch: [],   // {b64, mime, name, url}
+  ref: [],
+  selected: new Set(),
+  activeTab: 'model',
+  outputs: [],  // {id, th, en, dataUrl} — รวมไว้ทำ board
+};
+
+/* ════════════════ PRESET LIBRARY ════════════════
+   เรียงตาม priority: Model > Diagram > Plan > Edit  */
+const TABS = [
+  { id:'model',   ico:'🪵', name:'Model',        sub:'โมเดลจำลอง' },
+  { id:'diagram', ico:'🔍', name:'Diagram',      sub:'ไดอะแกรมวิเคราะห์' },
+  { id:'plan',    ico:'🗺',  name:'Plan',         sub:'แปลง / ลงสีแปลน' },
+  { id:'edit',    ico:'✨', name:'Render / Edit', sub:'เรนเดอร์ + แก้ไข' },
 ];
 
-const state = {
-  sketchPersp:null, sketchPersp2:null, sketchPersp3:null, sketchPlan:null, sketchElev:null, sketchSect:null, sketchIso:null, sketchDetail:null, mood:null, style:'Photorealistic CGI', matOrient:'vertical', mode:'render',
-  active:new Set(OUTPUTS.filter(o=>o.key!=='perspective2'&&o.key!=='perspective3').map(o=>o.key)), cards:{}, generating:false
+const TAB_INTRO = {
+  model:   { h:'Miniature Models', p:'แปลงสเก็ตหรือ render ให้กลายเป็นโมเดลจำลองจับต้องได้ — โมเดลไม้ อะคริลิก 3D-print หรือ figurine สำหรับ present คอนเซ็ปต์โดยไม่ต้องทำโมเดลจริง' },
+  diagram: { h:'Analysis & Explosion Diagrams', p:'สร้างไดอะแกรมวิเคราะห์ระดับมืออาชีพ — explosion แยกชิ้นส่วน, วิเคราะห์พรรณไม้, คอร์ตยาร์ด, มุมสูง พร้อมแสดง logic ของงานออกแบบ' },
+  plan:    { h:'Plan Conversion', p:'แปลงแปลน CAD หรือ master plan เป็นภาพมุมสูง (bird\u2019s eye) และลงสีแปลนภายใน/ผังรวมแบบแม่นยำ' },
+  edit:    { h:'Render & Edit', p:'เรนเดอร์จาก line drawing พร้อมแก้ไขแบบ Nano Banana — เปลี่ยนวัสดุ ปรับแสง เปลี่ยนฤดูกาล สลับมุมมอง หรือโชว์ผลรีโนเวท' },
 };
 
-// ── INIT ──
-function init() {
-  const grid = document.getElementById('outGrid');
-  OUTPUTS.forEach(o => {
-    const el = document.createElement('div');
-    el.className = state.active.has(o.key) ? 'out-item active' : 'out-item';
-    el.dataset.key = o.key;
-    el.innerHTML = `<span class="num">${o.num}</span><span class="name">${o.label}</span><span class="ic">${o.ic}</span>`;
-    el.onclick = () => toggleOut(o.key, el);
-    grid.appendChild(el);
-  });
-  document.querySelectorAll('#styleChips .chip').forEach(c => {
-    c.onclick = () => {
-      document.querySelectorAll('#styleChips .chip').forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-      state.style = c.dataset.style;
-    };
-  });
-  document.querySelectorAll('#matOrientChips .chip').forEach(c => {
-    c.onclick = () => {
-      document.querySelectorAll('#matOrientChips .chip').forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-      state.matOrient = c.dataset.orient;
-    };
-  });
-  document.querySelectorAll('#modeChips .chip').forEach(c => {
-    c.onclick = () => {
-      document.querySelectorAll('#modeChips .chip').forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-      state.mode = c.dataset.mode;
-      document.getElementById('genBtn').textContent =
-        state.mode === 'prompt' ? '📝 Generate Prompts' : '⚡ Generate All Renders';
-    };
-  });
-}
+/* prompt engineering: แต่ละ preset มี promptCore ที่ออกแบบให้ Gemini เข้าใจงานสถาปัตย์/แลนด์สเคป */
+const PRESETS = {
+  model: [
+    { g:'Physical models', items:[
+      { id:'m-wood', ico:'🪵', en:'Wooden Model', th:'โมเดลไม้',
+        desc:'โมเดลไม้บัลซ่า/เบิร์ช วางบนโต๊ะสตูดิโอ',
+        prompt:'Transform the provided design into a handmade architectural scale model built from laser-cut balsa and birch plywood. Warm natural wood tones, visible layered laminations, fine craft detailing, sitting on a clean birch desk in a modern architect\u2019s studio. Soft directional daylight, shallow depth of field, photographed like a real physical maquette. Preserve the exact massing, proportions and key openings of the design.' },
+      { id:'m-acrylic', ico:'🧊', en:'Acrylic Model', th:'โมเดลอะคริลิก',
+        desc:'โมเดลใส frosted edge-lit',
+        prompt:'Transform the design into a translucent frosted-acrylic architectural model with crisp laser-cut edges and subtle edge-lighting glow. Cool white studio backdrop, soft reflections on a glossy base, museum-quality presentation. Keep massing, proportions and fenestration faithful to the original design.' },
+      { id:'m-3dprint', ico:'🧱', en:'3D-Print Axonometric', th:'โมเดล 3D-print แกนเอียง',
+        desc:'monochrome resin 45° isometric',
+        prompt:'Generate a high-fidelity 3D-printed architecture model look, monochrome matte resin, shown in 45-degree axonometric (isometric) view to emphasize depth and massing. Pure white seamless background, physically-based soft shadows, fine print-layer texture. Preserve massing and key texture details of the design, lightly stylized.' },
+      { id:'m-figurine', ico:'🏛', en:'Collectible Figurine', th:'figurine ตั้งโชว์',
+        desc:'โมเดลย่อสไตล์ของสะสมในกล่องอะคริลิก',
+        prompt:'Turn the design into a collectible miniature architecture figurine displayed inside a clear acrylic showcase box on a desk, soft gallery lighting, tilt-shift miniature effect, charming detailed craftsmanship. Keep the building\u2019s identity and proportions recognizable.' },
+    ]},
+    { g:'Massing & context', items:[
+      { id:'m-massing', ico:'⬜', en:'White Massing Model', th:'โมเดลขาว massing',
+        desc:'foam/plaster ขาว ศึกษ ฟอร์ม',
+        prompt:'Render the design as a clean white plaster/foam massing study model, no materials or color, pure form study. Subtle grey soft shadows, neutral light-grey background, top-down 30-degree view. Emphasize volumes, voids, courtyards and stepping. Faithful to the original massing.' },
+    ]},
+  ],
 
-// ── TABS ──
-function switchTab(t) {
-  document.getElementById('tabInput').classList.toggle('active', t==='input');
-  document.getElementById('tabOutput').classList.toggle('active', t==='output');
-  document.getElementById('tabBoard').classList.toggle('active', t==='board');
-  document.getElementById('panelInput').classList.toggle('active', t==='input');
-  document.getElementById('panelOutput').classList.toggle('active', t==='output');
-  document.getElementById('panelBoard').classList.toggle('active', t==='board');
-  if (t==='board') initBoard();
-}
+  diagram: [
+    { g:'Explosion / axonometric', items:[
+      { id:'d-explode', ico:'💥', en:'Explosion Diagram', th:'explosion แยกชิ้นส่วน',
+        desc:'แยกชั้น โครงสร้าง-เปลือก-พื้น',
+        prompt:'Create a professional architectural exploded axonometric diagram from the design. Vertically separate the layers \u2014 roof/structure, facade/envelope, floor slabs, and ground/landscape \u2014 with thin connector guide lines showing assembly logic. Clean isometric perspective, consistent lighting, minimal labels, white presentation background, thesis/competition quality.' },
+      { id:'d-explode-res', ico:'🏠', en:'Residential Explosion', th:'explosion บ้านพักอาศัย',
+        desc:'แยกชั้นบ้านพักอาศัย',
+        prompt:'Generate an exploded axonometric diagram of this residential building, separating roof, upper floor, ground floor and site platform vertically with subtle dashed connector lines. Soft architectural shading, clean white background, presentation-ready, accurate to the design\u2019s geometry.' },
+    ]},
+    { g:'Landscape analysis', items:[
+      { id:'d-plant', ico:'🌿', en:'Planting Analysis', th:'วิเคราะห์พรรณไม้',
+        desc:'แยกชั้นพรรณไม้ ต้นใหญ่-คลุมดิน',
+        prompt:'Create a landscape planting analysis diagram from the design. Show vegetation layers separately \u2014 canopy trees, understory shrubs, groundcover and lawn \u2014 using a clean color-coded plan/axonometric hybrid. Include subtle leader lines and a tidy legend area. Soft natural palette (sage greens, warm earth), white background, professional landscape-architecture presentation style.' },
+      { id:'d-court', ico:'🏡', en:'Courtyard Analysis', th:'วิเคราะห์คอร์ตยาร์ด',
+        desc:'การไหลของที่ว่าง-กิจกรรม-ร่มเงา',
+        prompt:'Generate a landscape courtyard analysis diagram showing spatial flow, activity zones, circulation paths, water features and shade coverage. Use color-coded zones with arrows for movement and dashed boundaries, clean axonometric view, soft earthy palette, white background, refined landscape presentation graphics.' },
+      { id:'d-bird', ico:'🦅', en:'Bird\u2019s-eye Analysis', th:'วิเคราะห์มุมสูง',
+        desc:'ภาพรวมไซต์ + เส้นทาง-โซน',
+        prompt:'Create a bird\u2019s-eye site analysis diagram from the design. Aerial overview highlighting pedestrian access (warm accent), vehicle circulation (cool arrows), sun path (yellow arc), green zones and key nodes. Clean minimal cartographic style, soft shadows, white background, competition-board quality.' },
+    ]},
+    { g:'Technical drawings', items:[
+      { id:'d-axon', ico:'📦', en:'Axonometric View', th:'ภาพแกนเอียง',
+        desc:'isometric 3D จากสเก็ต',
+        prompt:'Produce a clean architectural axonometric (isometric) 3D drawing of the design, line-based with light material shading, consistent 30/60 angles, white background, crisp technical-illustration quality. Faithful to geometry.' },
+      { id:'d-section', ico:'✂', en:'Section Cut', th:'รูปตัด',
+        desc:'รูปตัดแสดงพื้นที่ภายใน',
+        prompt:'Generate an architectural section cut drawing through the design, revealing interior spatial relationships, floor levels and structure. Poché solid cut elements, scaled human figures and trees for reference, soft watercolor-tinted presentation style on white background.' },
+      { id:'d-elev', ico:'📏', en:'Elevation Set', th:'รูปด้าน',
+        desc:'รูปด้านหน้า/ข้าง',
+        prompt:'Create clean architectural elevation drawings (front and side) of the design with accurate proportions, material indication, subtle shadows and context line at base. Presentation-quality, white background.' },
+    ]},
+  ],
 
-// ── IMAGE LOAD (with resize → clean base64) ──
-function loadImg(e, type) { processFile(e.target.files[0], type); }
+  plan: [
+    { g:'Plan to view', items:[
+      { id:'p-bird', ico:'🛰', en:'CAD \u2192 Bird\u2019s-eye', th:'แปลน CAD \u2192 มุมสูง',
+        desc:'แปลง 2D plan เป็น 3D มุมสูง',
+        prompt:'Convert this 2D CAD/architectural plan into a realistic 3D bird\u2019s-eye aerial view. Extrude walls, add roofs, furniture, landscaping and context faithfully following the plan layout. Soft daylight, long shadows, photoreal materials, accurate to the plan\u2019s proportions and room arrangement.' },
+      { id:'p-3dplan', ico:'🏗', en:'Plan \u2192 3D Cutaway', th:'แปลน \u2192 3D เปิดหลังคา',
+        desc:'top-down 3D เห็นเฟอร์นิเจอร์',
+        prompt:'Transform this 2D floor plan into a top-down 3D dollhouse cutaway rendering. Show furniture in three dimensions, realistic materials (timber floors, tiled wet areas, outdoor deck), soft daylight and long shadows on a clean white background. Respect the plan layout precisely.' },
+    ]},
+    { g:'Plan coloring', items:[
+      { id:'p-colint', ico:'🎨', en:'Color Interior Plan', th:'ลงสีแปลนภายใน',
+        desc:'ลงสีวัสดุ-โซน แปลนภายใน',
+        prompt:'Precisely color and render this interior floor plan. Fill rooms with material-accurate top-down textures (wood, tile, rugs, greenery), furniture shadows, and subtle zone tints. Keep walls and dimensions exactly as drawn. Clean architectural presentation, magazine-quality colored plan.' },
+      { id:'p-colmaster', ico:'🗺', en:'Color Master Plan', th:'ลงสีผังรวม',
+        desc:'ลงสี landscape master plan',
+        prompt:'Render this landscape/site master plan with precise color fills \u2014 planting areas, paving, water, buildings and circulation \u2014 using a refined landscape-architecture palette (sage, terracotta, sand, water-blue). Subtle drop shadows on structures and tree canopies, tidy legend, white background. Keep boundaries faithful to the plan.' },
+    ]},
+  ],
 
-function processFile(file, type) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = new Image();
-    img.onload = () => {
-      const maxDim = 1024;
-      let { width, height } = img;
-      if (width > maxDim || height > maxDim) {
-        if (width > height) { height = Math.round(height*maxDim/width); width = maxDim; }
-        else { width = Math.round(width*maxDim/height); height = maxDim; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,width,height);
-      ctx.drawImage(img, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const base64 = dataUrl.split(',')[1]; // CLEAN base64, no prefix
-
-      const map = {
-        sketchPersp: { st:'sketchPersp', prev:'sketchPerspPrev', empty:'sketchPerspEmpty', ok:'sketchPerspOk' },
-        sketchPersp2:{ st:'sketchPersp2',prev:'sketchPersp2Prev',empty:'sketchPersp2Empty',ok:'sketchPersp2Ok'},
-        sketchPersp3:{ st:'sketchPersp3',prev:'sketchPersp3Prev',empty:'sketchPersp3Empty',ok:'sketchPersp3Ok'},
-        sketchPlan:  { st:'sketchPlan',  prev:'sketchPlanPrev',  empty:'sketchPlanEmpty',  ok:'sketchPlanOk'  },
-        sketchElev:  { st:'sketchElev',  prev:'sketchElevPrev',  empty:'sketchElevEmpty',  ok:'sketchElevOk'  },
-        sketchSect:  { st:'sketchSect',  prev:'sketchSectPrev',  empty:'sketchSectEmpty',  ok:'sketchSectOk'  },
-        sketchIso:   { st:'sketchIso',   prev:'sketchIsoPrev',   empty:'sketchIsoEmpty',   ok:'sketchIsoOk'   },
-        sketchDetail:{ st:'sketchDetail',prev:'sketchDetailPrev',empty:'sketchDetailEmpty',ok:'sketchDetailOk'},
-        mood:        { st:'mood',        prev:'moodPrev',        empty:'moodEmpty',        ok:'moodOk'        },
-      };
-      const m = map[type] || map.mood;
-      state[m.st] = base64;
-      document.getElementById(m.prev).src = dataUrl;
-      document.getElementById(m.prev).style.display = 'block';
-      document.getElementById(m.empty).style.display = 'none';
-      document.getElementById(m.ok).style.display = 'block';
-      log(`${type} loaded: ${file.name}`, 'success');
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-// ── DRAG ──
-function dragOver(e,id){ e.preventDefault(); document.getElementById(id).classList.add('drag'); }
-function dragLeave(id){ document.getElementById(id).classList.remove('drag'); }
-function dropFile(e,type){
-  e.preventDefault();
-  const zoneMap = { sketchPersp:'perspZone', sketchPersp2:'persp2Zone', sketchPersp3:'persp3Zone', sketchPlan:'planZone', sketchElev:'elevZone', sketchSect:'sectZone', sketchIso:'isoZone', sketchDetail:'detailZone', mood:'moodZone' };
-  const id = zoneMap[type] || 'moodZone';
-  document.getElementById(id).classList.remove('drag');
-  processFile(e.dataTransfer.files[0], type);
-}
-
-// ── TOGGLES ──
-function toggleOut(key, el) {
-  if (state.active.has(key)) { state.active.delete(key); el.classList.remove('active'); }
-  else { state.active.add(key); el.classList.add('active'); }
-  updateCount();
-}
-function updateCount() {
-  const done = Object.values(state.cards).filter(c=>c.status==='done').length;
-  document.getElementById('tabCount').textContent = `(${done}/${state.active.size})`;
-}
-
-// ── LOG ──
-function log(msg, type='info') {
-  const line = `<div class="log-line lg-${type}">[${new Date().toLocaleTimeString('en-GB')}] ${msg}</div>`;
-  const el = document.getElementById('logInput');
-  el.insertAdjacentHTML('beforeend', line);
-  el.scrollTop = el.scrollHeight;
-}
-
-// ── BUILD CARDS ──
-function buildCards() {
-  const wrap = document.getElementById('cards');
-  wrap.innerHTML = '';
-  OUTPUTS.filter(o=>state.active.has(o.key)).forEach(o => {
-    wrap.insertAdjacentHTML('beforeend', `
-      <div class="card" id="card-${o.key}">
-        <div class="card-head">
-          <span class="card-num">${o.num}</span>
-          <span class="card-title">${o.label}</span>
-          <span class="card-status st-pending" id="status-${o.key}">PENDING</span>
-        </div>
-        <div class="progress" id="prog-${o.key}"></div>
-        <div class="card-body" id="body-${o.key}">
-          <div class="card-msg" style="color:var(--border);text-align:center">AWAITING RENDER</div>
-        </div>
-        <div class="card-foot">
-          <button class="dl-btn" id="dl-${o.key}" disabled onclick="downloadCard('${o.key}')">↓ Download</button>
-        </div>
-      </div>`);
-    state.cards[o.key] = { key:o.key, status:'pending', img:null };
-  });
-}
-
-// ── GENERATE ──
-async function startGen() {
-  const brief = document.getElementById('brief').value.trim();
-  const hasSketch = state.sketchPersp || state.sketchPersp2 || state.sketchPersp3 || state.sketchPlan || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail;
-  if (!brief && !hasSketch) { log('⚠ Add a sketch or brief', 'error'); return; }
-  if (state.active.size === 0) { log('⚠ Select at least one output', 'error'); return; }
-  if (state.generating) return;
-
-  state.generating = true;
-  const btn = document.getElementById('genBtn');
-  btn.disabled = true; btn.textContent = '⏳ Generating...';
-  buildCards();
-  switchTab('output');
-  log(`Starting ${state.active.size} renders · style: ${state.style}`, 'info');
-
-  const targets = OUTPUTS.filter(o=>state.active.has(o.key));
-  for (let i=0; i<targets.length; i++) {
-    log(`[${i+1}/${targets.length}] ${targets[i].label}...`, 'warn');
-    await genOne(targets[i], brief);
-    if (i < targets.length-1) await delay(500);
-  }
-
-  state.generating = false;
-  btn.disabled = false; btn.textContent = '⚡ Generate All Renders';
-  log('All renders complete!', 'success');
-}
-
-async function genOne(cfg, brief) {
-  setStatus(cfg.key, 'generating', 'GENERATING');
-  document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-shimmer"></div>';
-
-  const project = brief || 'Contemporary Thai architecture and landscape design, warm natural materials (timber, concrete, stone), minimalist tropical aesthetic';
-
-  // Unified MASTER STYLE DNA — perspective = cinematic render+sketch; drawings = high-detail watercolor+ink
-  const isPersp = cfg.key.startsWith('perspective');
-  const STYLE_DNA = isPersp
-    ? "MASTER STYLE — render this PERSPECTIVE as a REALISTIC, CINEMATIC architectural visualization: photoreal-quality materials (natural wood grain, concrete texture, glass reflections, fabric), DRAMATIC CINEMATIC LIGHTING — warm low-angle golden-hour sun, long cast shadows, glowing rim light on edges, volumetric light rays / god-rays through trees, luminous interior glow, rich highlight-to-shadow contrast, atmospheric depth and haze, shallow depth-of-field, professional architectural CGI quality, 8K detail, dramatic elegant composition. THEN blend a subtle hand-drawn touch: the upper edges and far corners gracefully dissolve into delicate pencil/ink construction sketch lines and light watercolor wash (only ~20% of the frame at the edges), so it reads as a high-end render with an artistic sketch overlay — like a premium architectural competition perspective. The focal building and foreground stay fully realistic and cinematic."
-    : "MASTER PRESENTATION STYLE — render as an EXTREMELY DETAILED professional hand-drawn architectural illustration by a master architect-illustrator. The defining quality is DENSE, INTRICATE FINE-LINE PEN/INK WORK with rich texture, finished with delicate watercolor washes on cream paper. CRITICAL LINE DETAIL — draw with visible individual strokes: TREES rendered leaf-by-leaf with layered foliage clusters, visible branch structure and depth (not green blobs); TREE TRUNKS and branches with vertical bark-texture lines and rough cross-hatched shading; CONCRETE with fine board-form / form-tie lines and stipple texture; TIMBER with visible wood-grain lines and plank joints; STONE and BOULDERS with contour hatching and directional shading lines following the rock surface; GRAVEL/PATHS with fine speckle and pebble linework; foliage and shadows built up with HATCHING and CROSS-HATCHING rather than solid fills. Palette: warm natural WOOD, soft SAGE/olive GREEN, light grey CONCRETE, cream paper. Crisp thin DIMENSION LINES with arrowheads, elegant hand-lettered labels. Foreground crisp and highly detailed, background lighter. CINEMATIC LIGHTING within the hand-drawn medium: a clear directional light source (warm low-angle sun), long soft cast shadows rendered with directional hatching and graded watercolor, luminous highlights on lit surfaces, gentle atmospheric haze and depth, dappled light filtering through foliage — dramatic yet natural mood, while STILL reading as a hand-painted illustration (not a 3D render). Gallery-quality, comparable to a published architectural detail sheet. AVOID flat empty washes, smooth blobs, low line density, childlike simplicity, flat even lighting.";
-
-  // ── SMART SKETCH SELECTION per view ──
-  // 1) If a sketch exists for THIS exact view → use it as primary.
-  // 2) Otherwise → fall back to Plan + Perspective together (so AI keeps the design consistent).
-  const isPerspective = isPersp;
-  const isPlan = cfg.key === 'plan';
-
-  const exactMap = {
-    plan: ['sketchPlan','floor plan (top view)'],
-    perspective: ['sketchPersp','perspective'],
-    perspective2: ['sketchPersp2','perspective angle 2'],
-    perspective3: ['sketchPersp3','perspective angle 3'],
-    elevation: ['sketchElev','elevation'],
-    section: ['sketchSect','section'],
-    blowup: ['sketchDetail','construction detail'],
-    material: [null,''],
-    planting: ['sketchPlan','site/plan'],
-  };
-  const [exactKey, exactLabel] = exactMap[cfg.key] || [null,''];
-
-  let primary = null, primaryLabel = '', secondary = null;
-  if (exactKey && state[exactKey]) {
-    primary = state[exactKey];
-    primaryLabel = exactLabel;
-  } else {
-    // fallback: plan + perspective combined for design consistency
-    primary = state.sketchPlan || state.sketchPersp || state.sketchPersp2 || state.sketchPersp3 || state.sketchElev || state.sketchSect || state.sketchIso || state.sketchDetail || null;
-    secondary = (state.sketchPersp && state.sketchPersp !== primary) ? state.sketchPersp : (state.sketchPlan && state.sketchPlan !== primary ? state.sketchPlan : null);
-    primaryLabel = 'available Plan and Perspective sketches (analyze them together to keep the design consistent)';
-  }
-  // also pass isometric as extra context if present and relevant
-  if (!secondary && state.sketchIso && state.sketchIso !== primary) secondary = state.sketchIso;
-
-  const matOrient = (state.matOrient === 'horizontal')
-    ? 'arranged HORIZONTALLY in a wide landscape row'
-    : 'arranged VERTICALLY in a tall column';
-  const viewText = cfg.view.replace('__MAT_ORIENT__', matOrient);
-
-  const promptText = `Create ${viewText}
-
-PROJECT BRIEF: ${project}
-
-${STYLE_DNA}
-
-CRITICAL DESIGN-FIDELITY INSTRUCTIONS:
-- The attached sketch image(s) define the BUILDING DESIGN — keep the SAME layout, proportions, roof form, structure and spatial arrangement.
-- ${primaryLabel ? `Reference: use the ${primaryLabel} as the design source for this view.` : 'Follow the provided sketches.'}
-- The mood/reference image is ONLY for color palette, materials and atmosphere — do NOT copy its building shape or composition.
-${isPerspective ? '- Render a NEW camera ANGLE/viewpoint of THIS building (do not reuse the reference photo composition).' : ''}
-${isPlan ? '- This MUST be a strict TOP-DOWN orthographic plan (looking straight down). NOT a 3D or axonometric view.' : ''}
-- Professional architectural presentation output, EXTREMELY HIGH DETAIL and refinement, gallery-quality hand-drawn illustration, sharp clean linework, rich layered watercolor. Wide landscape composition. No watermark, no random text labels unless described above.`;
-
-  // Build sketch payload — primary + optional secondary (for fallback consistency)
-  const sketches = [];
-  if (primary) sketches.push(primary);
-  if (secondary) sketches.push(secondary);
-
-  let data = null, lastErr = 'unknown';
-  const MAX_TRIES = 3;
-  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: promptText,
-          sketch: sketches[0] || null,
-          sketch2: sketches[1] || null,
-          mood: state.mood || null,
-          mode: state.mode
-        })
-      });
-      // Safely parse — proxy may return plain-text error on timeout
-      const raw = await res.text();
-      try {
-        data = JSON.parse(raw);
-      } catch (_) {
-        lastErr = res.status === 504
-          ? 'Timeout — รูปนี้ใช้เวลานานเกินไป (ลอง generate ทีละน้อย หรือลดจำนวนภาพ input)'
-          : `Server: ${raw.slice(0, 120)}`;
-        data = null;
-      }
-      if (data && data.error) { lastErr = data.error; data = null; }
-      else if (data && data.image) { if (data.model) log(`  ✓ ${data.model}`, 'success'); break; }
-      else if (data && state.mode === 'prompt' && data.text) { break; } // prompt mode: text is the result
-    } catch (e) {
-      lastErr = e.message;
-      data = null;
-    }
-
-    // Decide whether to retry
-    const retryable = /quota|rate|load failed|timeout|exceeded|retry|fetch failed|network/i.test(lastErr);
-    if (data && (data.image || (state.mode==='prompt' && data.text))) break;
-    if (attempt < MAX_TRIES && (retryable || !data)) {
-      const waitMs = 1500 * attempt; // backoff: 1.5s, 3s
-      log(`  ⟳ ${cfg.label} retry ${attempt}/${MAX_TRIES-1} in ${waitMs/1000}s...`, 'warn');
-      setStatus(cfg.key, 'generating', `RETRY ${attempt}`);
-      await delay(waitMs);
-    } else {
-      break;
-    }
-  }
-
-  if (!data) { showError(cfg.key, lastErr); return; }
-
-  // PROMPT MODE — show the generated prompt text (copyable), no image
-  if (state.mode === 'prompt') {
-    const ptxt = data.text || promptText;
-    state.cards[cfg.key].prompt = ptxt;
-    state.cards[cfg.key].status = 'done';
-    document.getElementById(`body-${cfg.key}`).innerHTML =
-      `<div class="card-msg" style="color:#d4c5b0;text-align:left;white-space:pre-wrap;font-size:0.72rem;line-height:1.6;max-height:300px;overflow:auto;padding:4px">${ptxt.replace(/</g,'&lt;')}</div>
-       <button class="copy-prompt-btn" onclick="copyPrompt('${cfg.key}')">📋 Copy Prompt</button>`;
-    setStatus(cfg.key, 'done', 'PROMPT');
-    document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-done"></div>';
-    log(`✓ ${cfg.label} prompt ready`, 'success');
-    updateCount();
-    return;
-  }
-
-  // Extract image returned by proxy
-  let imgB64 = data.image || null;
-  let imgMime = data.mime || 'image/png';
-  let txt = data.text || '';
-
-  if (imgB64) {
-    const src = `data:${imgMime};base64,${imgB64}`;
-    document.getElementById(`body-${cfg.key}`).innerHTML = `<img src="${src}" alt="${cfg.label}">`;
-    state.cards[cfg.key].img = src;
-    state.cards[cfg.key].status = 'done';
-    setStatus(cfg.key, 'done', 'DONE');
-    document.getElementById(`prog-${cfg.key}`).innerHTML = '<div class="progress-done"></div>';
-    document.getElementById(`dl-${cfg.key}`).disabled = false;
-    log(`✓ ${cfg.label} rendered`, 'success');
-    updateCount();
-  } else {
-    showError(cfg.key, txt || 'No image returned. Check the API key set in Vercel env vars and that it has image generation access.');
-  }
-}
-
-function copyPrompt(key) {
-  const txt = state.cards[key]?.prompt || '';
-  navigator.clipboard?.writeText(txt).then(()=>log(`Copied ${key} prompt`,'success'));
-}
-
-function showError(key, msg) {
-  setStatus(key, 'error', 'ERROR');
-  document.getElementById(`prog-${key}`).innerHTML = '<div class="progress-err"></div>';
-  document.getElementById(`body-${key}`).innerHTML =
-    `<div class="card-msg" style="color:#c45a5a"><b>Failed</b><br>${msg}</div>`;
-  log(`✗ ${key}: ${msg}`, 'error');
-}
-
-function setStatus(key, type, label) {
-  const el = document.getElementById(`status-${key}`);
-  el.className = `card-status st-${type}`;
-  el.textContent = label;
-}
-
-// ── DOWNLOAD ──
-function downloadCard(key) {
-  const c = state.cards[key];
-  if (!c?.img) return;
-  const a = document.createElement('a');
-  a.href = c.img; a.download = `khangkan-${key}.png`; a.click();
-}
-function downloadAll() { Object.values(state.cards).forEach(c => c.img && downloadCard(c.key)); }
-function clearAll() {
-  state.cards = {};
-  document.getElementById('cards').innerHTML = `
-    <div class="empty" id="emptyState">
-      <div class="empty-icon">🏗</div>
-      <div class="empty-title">Awaiting Input</div>
-      <div class="empty-sub">Upload sketch · Write brief · Generate</div>
-    </div>`;
-  updateCount();
-}
-
-function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-// ════════════════════════════════════════
-// ── BOARD COMPOSER ──
-// ════════════════════════════════════════
-const boardState = { items:[], texts:[], W:1000, H:1414 };
-
-const TEMPLATES = {
-  'ekkapong-pro': { W:1080, H:1414 },
-  'portrait-hero': { W:1000, H:1414 },
-  'portrait-full': { W:1000, H:1414 },
-  'landscape-pro': { W:1414, H:1000 },
-  'grid-simple':   { W:1000, H:1414 },
+  edit: [
+    { g:'Sketch to render', items:[
+      { id:'e-photoreal', ico:'📷', en:'Photoreal Render', th:'เรนเดอร์เหมือนจริง',
+        desc:'line drawing \u2192 photorealistic',
+        prompt:'Transform this sketch/line drawing into a photorealistic eye-level architectural render. Keep the exact layout, structures and elements. Golden-hour cinematic lighting, lush realistic vegetation, accurate materials and textures, professional architectural CGI quality. No text or watermark.' },
+      { id:'e-illus', ico:'🖌', en:'Illustration Style', th:'สไตล์ภาพประกอบ',
+        desc:'architectural illustration ฮิต',
+        prompt:'Render the design in the popular contemporary architectural illustration style \u2014 soft flat-color washes, subtle grain, atmospheric depth, stylized people and trees, warm balanced palette. Editorial presentation quality, faithful to the design geometry.' },
+    ]},
+    { g:'Edit existing render', items:[
+      { id:'e-material', ico:'🧱', en:'Swap Material', th:'เปลี่ยนวัสดุ',
+        desc:'เปลี่ยนวัสดุตาม brief/ref',
+        prompt:'Edit the provided render: replace the primary facade/surface materials according to the brief (and reference image if provided), keeping geometry, lighting and composition unchanged. Seamless realistic integration.' },
+      { id:'e-light', ico:'💡', en:'Adjust Lighting', th:'ปรับแสง',
+        desc:'เปลี่ยนช่วงเวลา/อารมณ์แสง',
+        prompt:'Edit the provided render: change the lighting to the mood described in the brief (e.g. golden sunset, soft morning, blue hour, overcast). Keep all geometry, materials and camera angle identical, only relight the scene naturally.' },
+      { id:'e-season', ico:'🍂', en:'Season / Weather', th:'เปลี่ยนฤดู/อากาศ',
+        desc:'แปลงบรรยากาศตามฤดูกาล',
+        prompt:'Edit the provided render to change season or weather per the brief (e.g. rainy, misty, autumn foliage, dry season). Keep architecture and composition unchanged, adjust vegetation, sky and atmosphere realistically.' },
+      { id:'e-view', ico:'🔄', en:'Switch Viewpoint', th:'สลับมุมมอง',
+        desc:'มุมกล้องใหม่ คงฉากเดิม',
+        prompt:'From the provided render, generate a new camera angle as described in the brief (e.g. bird\u2019s-eye, worm\u2019s-eye, opposite corner) while keeping the same building, materials, lighting and scene perfectly consistent.' },
+      { id:'e-renovate', ico:'🛠', en:'Renovation Preview', th:'พรีวิวรีโนเวท',
+        desc:'before/after บ้านเก่า',
+        prompt:'Show a renovation/restoration result of the provided existing building image: refresh facade, materials, landscaping and details to a modern refined state per the brief, while preserving the original structure and footprint. Photoreal, believable after-state.' },
+    ]},
+  ],
 };
 
-function initBoard() {
-  const done = OUTPUTS.filter(o => state.cards[o.key]?.img);
-  const canvas = document.getElementById('boardCanvas');
-  if (done.length === 0) {
-    canvas.innerHTML = '<div class="board-empty"><div style="font-size:2rem">📐</div><div style="font-family:IBM Plex Mono,monospace;font-size:0.7rem">ยังไม่มีภาพ — ไป Generate ก่อน</div></div>';
-    canvas.style.width = '600px'; canvas.style.height = '300px'; canvas.style.transform='none';
-    return;
-  }
-  if (boardState.items.length === 0) applyTemplate();
-  else drawBoard();
+/* ════════════════ INIT ════════════════ */
+function init(){
+  // tabs
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = TABS.map(t=>{
+    const count = countPresets(t.id);
+    return `<button class="tab ${t.id===state.activeTab?'active':''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">
+      <span class="tab-ico">${t.ico}</span><span>${t.name}</span><span class="badge">${count}</span>
+    </button>`;
+  }).join('');
+  renderTab();
 }
 
-function applyTemplate() {
-  const tpl = document.getElementById('boardTemplate').value;
-  const T = TEMPLATES[tpl];
-  boardState.W = T.W; boardState.H = T.H;
-  boardState.items = []; boardState.texts = [];
-  const W = T.W, H = T.H;
-  const has = k => !!(state.cards[k]?.img);
-  const get = k => has(k) ? k : null;
-  const add = (key,x,y,w,h) => { if(has(key)) boardState.items.push({key,x:x*W/100,y:y*H/100,w:w*W/100,h:h*H/100}); };
-  const addText = (txt,x,y,size,weight) => boardState.texts.push({txt,x:x*W/100,y:y*H/100,size,weight:weight||300,family:'Trirong'});
-  const title = document.getElementById('boardTitle').value;
-  const sub = document.getElementById('boardSub').value;
+function countPresets(tabId){
+  return PRESETS[tabId].reduce((n,g)=>n+g.items.length,0);
+}
 
-  if (tpl === 'ekkapong-pro') {
-    // Reference 2 (Operable Wall) composition
-    addText(title, 3, 1.5, 30, 600);
-    addText(sub, 3, 4.5, 12, 300);
-    // Hero perspective big at top
-    const hero = get('perspective')||get('perspective2');
-    if(hero) add(hero, 3, 7, 94, 33);
-    // Thumbnail row of extra perspectives / interior shots
-    const thumbs = [get('perspective2'), get('perspective3')].filter(k=>k&&k!==hero);
-    thumbs.forEach((k,i)=> add(k, 3 + i*47.5, 41.5, 46, 11));
-    // Plan left, Section right (two stacked)
-    add('plan', 3, 55, 45, 22);
-    add('section', 51, 55, 46, 11);
-    add('elevation', 51, 67, 46, 10);
-    // Bottom row: material / blowup / planting
-    add('material', 3, 79, 30, 13);
-    add('blowup', 35, 79, 28, 13);
-    add('planting', 65, 79, 32, 13);
-  } else if (tpl === 'portrait-hero') {
-    addText(title,4,2,42,600); addText(sub,4,6,15,300);
-    const hero = get('perspective')||get('perspective2')||get('perspective3');
-    if(hero) add(hero,3,9,94,38);
-    add('plan',3,49,46,22); add('section',51,49,46,22);
-    add('elevation',3,73,94,12);
-    add('material',3,87,30,11); add('blowup',35,87,30,11); add('planting',67,87,30,11);
-  } else if (tpl === 'portrait-full') {
-    addText(title,4,1.5,36,600); addText(sub,4,5,13,300);
-    const hero = get('perspective')||get('perspective2');
-    if(hero) add(hero,3,8,94,30);
-    add('section',3,40,46,18); add('plan',51,40,46,18);
-    add('elevation',3,60,94,13);
-    add('blowup',3,75,30,12); add('material',35,75,30,12); add('planting',67,75,30,12);
-    const p2 = get('perspective2')||get('perspective3');
-    if(p2&&p2!==hero) add(p2,3,89,94,9);
-  } else if (tpl === 'landscape-pro') {
-    addText(title,3,2,40,600); addText(sub,3,7,14,300);
-    const hero = get('perspective')||get('perspective2');
-    if(hero) add(hero,3,12,64,50);
-    add('plan',69,12,28,24); add('section',69,38,28,24);
-    add('elevation',3,64,40,16); add('material',45,64,22,16); add('blowup',69,64,28,16);
-    add('planting',3,82,40,15);
-    const p2 = get('perspective3')||get('perspective2');
-    if(p2&&p2!==hero) add(p2,45,82,52,15);
+function switchTab(id){
+  state.activeTab = id;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===id));
+  renderTab();
+}
+
+function renderTab(){
+  const tab = state.activeTab;
+  const intro = TAB_INTRO[tab];
+  let html = `<div class="tab-intro"><h2>${intro.h}</h2><p>${intro.p}</p></div>`;
+  PRESETS[tab].forEach(group=>{
+    html += `<div class="group-head">${group.g}</div><div class="preset-grid">`;
+    group.items.forEach(p=>{
+      const sel = state.selected.has(p.id) ? 'sel' : '';
+      html += `<button class="preset ${sel}" onclick="togglePreset('${p.id}')">
+        <span class="p-ico">${p.ico}</span>
+        <span class="p-name">${p.en}<span class="th">${p.th}</span></span>
+        <span class="p-desc">${p.desc}</span>
+        <span class="p-check"></span>
+      </button>`;
+    });
+    html += `</div>`;
+  });
+  document.getElementById('tabBody').innerHTML = html;
+}
+
+function findPreset(id){
+  for(const tab in PRESETS)
+    for(const g of PRESETS[tab])
+      for(const p of g.items)
+        if(p.id===id) return p;
+  return null;
+}
+
+function togglePreset(id){
+  if(state.selected.has(id)) state.selected.delete(id);
+  else state.selected.add(id);
+  renderTab();
+  updateSelInfo();
+}
+
+function updateSelInfo(){
+  const n = state.selected.size;
+  const info = document.getElementById('selInfo');
+  const btn = document.getElementById('btnGen');
+  if(n===0){ info.innerHTML='ยังไม่ได้เลือก preset'; btn.disabled=true; }
+  else{
+    const names = [...state.selected].map(id=>findPreset(id)?.th).filter(Boolean).join(' · ');
+    info.innerHTML = `เลือก <b>${n}</b> รายการ — ${names}`;
+    const hasImg = state.sketch.length>0 || state.ref.length>0;
+    btn.disabled = !hasImg;
+    if(!hasImg) info.innerHTML += ' <span style="color:var(--gold)">· อัปโหลดภาพก่อน</span>';
+  }
+}
+
+/* ════════════════ FILE UPLOAD ════════════════ */
+function onFiles(e, kind){
+  const files = [...e.target.files];
+  files.forEach(f=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const b64 = reader.result.split(',')[1];
+      const url = reader.result;
+      const item = { b64, mime:f.type, name:f.name, url };
+      if(kind==='sketch') state.sketch.push(item);
+      else state.ref.push(item);
+      renderThumbs(kind);
+      updateSelInfo();
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value='';
+}
+
+function renderThumbs(kind){
+  const arr = kind==='sketch'?state.sketch:state.ref;
+  const el = document.getElementById('th-'+kind);
+  el.innerHTML = arr.map((it,i)=>`<div class="thumb"><img src="${it.url}"><button class="x" onclick="rmThumb('${kind}',${i})">✕</button></div>`).join('');
+}
+function rmThumb(kind,i){
+  if(kind==='sketch') state.sketch.splice(i,1);
+  else state.ref.splice(i,1);
+  renderThumbs(kind);
+  updateSelInfo();
+}
+
+// drag styling
+['sketch','ref'].forEach(k=>{
+  const z = document.getElementById('z-'+k);
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag');});
+  z.addEventListener('dragleave',()=>z.classList.remove('drag'));
+  z.addEventListener('drop',e=>{
+    e.preventDefault(); z.classList.remove('drag');
+    const dt={target:{files:e.dataTransfer.files,value:''}};
+    onFiles(dt,k);
+  });
+});
+
+/* ════════════════ API KEY (server-side) ════════════════
+   คีย์อยู่ฝั่ง server แล้ว — หน้านี้ไม่จัดการคีย์ */
+
+/* ════════════════ GENERATE ════════════════ */
+async function runGenerate(){
+  if(state.selected.size===0){ toast('เลือก preset อย่างน้อย 1 อัน'); return; }
+  if(state.sketch.length===0 && state.ref.length===0){ toast('อัปโหลดภาพ sketch/plan ก่อนครับ'); return; }
+
+  document.getElementById('emptyState')?.remove();
+  const btn=document.getElementById('btnGen'); btn.disabled=true;
+
+  const ids=[...state.selected];
+  ids.forEach(id=>{
+    const p=findPreset(id);
+    if(document.getElementById('card-'+id)) return;
+    const card=document.createElement('div');
+    card.className='result-card'; card.id='card-'+id;
+    card.innerHTML=`<div class="rc-head"><span class="rc-name">${p.ico} ${p.th}</span><span class="rc-status pending" id="st-${id}">กำลังสร้าง…</span></div>
+      <div class="rc-loading" id="ld-${id}">rendering…</div>`;
+    document.getElementById('results').prepend(card);
+  });
+
+  for(const id of ids){
+    await genOne(id);
+  }
+  btn.disabled=false;
+  toast('เสร็จแล้ว ✓');
+}
+
+async function genOne(id){
+  const p=findPreset(id);
+  const brief=document.getElementById('brief').value.trim();
+  const ratio=document.getElementById('ratio').value;
+  const st=document.getElementById('st-'+id);
+
+  // build prompt
+  let promptText = p.prompt;
+  if(brief) promptText += `\n\nProject brief / focus: ${brief}`;
+  promptText += `\n\nOutput a single ${ratio} image. High detail, professional presentation quality. No watermark, no random text labels.`;
+
+  // collect images (clean base64, no prefix)
+  const sketches = state.sketch.map(s=>({mime:s.mime, data:s.b64}));
+  const refs = state.ref.map(r=>({mime:r.mime, data:r.b64}));
+
+  try{
+    const out = await callProxy({ prompt:promptText, ratio, sketches, refs });
+    if(out){
+      const card=document.getElementById('card-'+id);
+      document.getElementById('ld-'+id)?.remove();
+      st.textContent='เสร็จ'; st.className='rc-status done';
+      const dataUrl='data:image/png;base64,'+out;
+      const img=document.createElement('img');
+      img.src=dataUrl;
+      img.onclick=()=>openModal(img.src);
+      card.appendChild(img);
+      const act=document.createElement('div');
+      act.className='rc-actions';
+      act.innerHTML=`<a href="${dataUrl}" download="khangkan-${id}.png">↓ ดาวน์โหลด</a>
+        <a href="#" onclick="reGen('${id}');return false;">↻ ทำใหม่</a>`;
+      card.appendChild(act);
+      // save for board (replace if exists)
+      const ex=state.outputs.findIndex(o=>o.id===id);
+      const rec={ id, th:p.th, en:p.en, dataUrl };
+      if(ex>=0) state.outputs[ex]=rec; else state.outputs.push(rec);
+      updateOutCount();
+    } else throw new Error('ไม่ได้ภาพกลับมา');
+  }catch(err){
+    document.getElementById('ld-'+id)?.remove();
+    st.textContent='ล้มเหลว'; st.className='rc-status err';
+    const card=document.getElementById('card-'+id);
+    const msg=document.createElement('div');
+    msg.style.cssText='padding:11px;font-size:.7rem;color:var(--red);line-height:1.5;';
+    msg.textContent=String(err.message||err);
+    card.appendChild(msg);
+  }
+}
+
+async function callProxy({prompt, ratio, sketches, refs}){
+  const res = await fetch('/api/generate', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ prompt, ratio, sketches, refs })
+  });
+  if(!res.ok){
+    let detail='';
+    try{ const j=await res.json(); detail=j.error||j.message||''; }catch{}
+    throw new Error(`${res.status}: ${detail||res.statusText}`);
+  }
+  const data = await res.json();
+  return data.image || null;
+}
+
+function reGen(id){
+  document.getElementById('card-'+id)?.remove();
+  state.selected.add(id);
+  renderTab();
+  genOne(id);
+}
+
+function clearResults(){
+  state.outputs=[];
+  updateOutCount();
+  document.getElementById('results').innerHTML=`<div class="empty-state" id="emptyState"><div><div class="e-ico">▦</div><p>เลือก preset แล้วกด "สร้างภาพ"<br>ผลลัพธ์จะปรากฏที่นี่</p></div></div>`;
+}
+
+function updateOutCount(){
+  const n=state.outputs.length;
+  document.getElementById('outCount').textContent = n?`(${n})`:'';
+}
+
+/* ════════════════ BOARD COMPOSER ════════════════ */
+let boardItems=[]; // {dataUrl,label,x,y,w,h,isHeader,title,sub}
+
+const BOARD_SIZES = {
+  'portrait-hero':  { w:1000, h:1414 },
+  'portrait-full':  { w:1000, h:1414 },
+  'landscape-pro':  { w:1414, h:1000 },
+  'grid':           { w:1200, h:1200 },
+};
+
+function openBoard(){
+  if(state.outputs.length===0){ toast('ยังไม่มี output — สร้างภาพก่อนครับ'); return; }
+  document.getElementById('boardOverlay').classList.add('show');
+  renderBoard();
+}
+function closeBoard(){ document.getElementById('boardOverlay').classList.remove('show'); }
+
+function renderBoard(){
+  const layout=document.getElementById('boardLayout').value;
+  const size=BOARD_SIZES[layout];
+  const imgs=state.outputs;
+  boardItems = autoLayout(layout, size, imgs);
+
+  // scale canvas to fit stage
+  const stage=document.getElementById('boardStage');
+  const maxW=stage.clientWidth-56, maxH=stage.clientHeight-56;
+  const scale=Math.min(maxW/size.w, maxH/size.h, 1);
+  const canvas=document.getElementById('boardCanvas');
+  canvas.style.width=size.w+'px';
+  canvas.style.height=size.h+'px';
+  canvas.style.transform=`scale(${scale})`;
+  canvas.style.transformOrigin='top center';
+  canvas.dataset.w=size.w; canvas.dataset.h=size.h; canvas.dataset.scale=scale;
+
+  paintBoard();
+}
+
+function autoLayout(layout, S, imgs){
+  const items=[];
+  const pad=Math.round(S.w*0.04);
+  const gap=Math.round(S.w*0.025);
+  // header block
+  items.push({ isHeader:true, title:'KHANGKAN', sub:'studio · presentation board',
+    x:pad, y:pad, w:S.w-pad*2, h:Math.round(S.h*0.07) });
+  const top = pad + Math.round(S.h*0.07) + gap;
+
+  const n=imgs.length;
+  if(layout==='grid'){
+    const cols=Math.ceil(Math.sqrt(n));
+    const rows=Math.ceil(n/cols);
+    const cw=(S.w-pad*2-gap*(cols-1))/cols;
+    const ch=(S.h-top-pad-gap*(rows-1))/rows;
+    imgs.forEach((im,i)=>{
+      const c=i%cols, r=Math.floor(i/cols);
+      items.push({ dataUrl:im.dataUrl,label:im.th,
+        x:pad+c*(cw+gap), y:top+r*(ch+gap), w:cw, h:ch });
+    });
+  } else if(layout==='landscape-pro'){
+    // big hero left, stack right
+    const heroW=S.w*0.58-pad-gap/2;
+    const heroH=S.h-top-pad;
+    if(imgs[0]) items.push({dataUrl:imgs[0].dataUrl,label:imgs[0].th,x:pad,y:top,w:heroW,h:heroH});
+    const rest=imgs.slice(1);
+    const rx=pad+heroW+gap, rw=S.w-rx-pad;
+    const rh=rest.length?(heroH-gap*(rest.length-1))/rest.length:heroH;
+    rest.forEach((im,i)=>items.push({dataUrl:im.dataUrl,label:im.th,x:rx,y:top+i*(rh+gap),w:rw,h:rh}));
   } else {
-    const keys = OUTPUTS.filter(o=>has(o.key)).map(o=>o.key);
-    addText(title,4,1.5,34,600);
-    const cols=2, gap=3, startY=8, cw=(94-gap)/cols, ch=20;
-    keys.forEach((k,i)=>{ const col=i%cols,row=Math.floor(i/cols); add(k,3+col*(cw+gap),startY+row*(ch+gap),cw,ch); });
-  }
-  drawBoard();
-}
-
-function drawBoard() {
-  const canvas = document.getElementById('boardCanvas');
-  canvas.innerHTML = '';
-  canvas.style.width = boardState.W+'px'; canvas.style.height = boardState.H+'px';
-  const wrap = document.getElementById('boardWrap');
-  const avail = wrap.clientWidth - 40;
-  const scale = Math.min(1, avail/boardState.W);
-  canvas.style.transform = `scale(${scale})`;
-  canvas.dataset.scale = scale;
-
-  boardState.items.forEach((it,idx) => {
-    const card = state.cards[it.key]; if(!card?.img) return;
-    const el = document.createElement('div');
-    el.className = 'board-item';
-    el.style.cssText = `left:${it.x}px;top:${it.y}px;width:${it.w}px;height:${it.h}px`;
-    const label = OUTPUTS.find(o=>o.key===it.key)?.label || it.key;
-    el.innerHTML = `<img src="${card.img}"><div class="board-cap">${label}</div><div class="resize-h"></div>`;
-    makeDraggable(el,it,'item');
-    canvas.appendChild(el);
-  });
-  boardState.texts.forEach((tx,idx) => {
-    const el = document.createElement('div');
-    el.className = 'board-text';
-    el.style.cssText = `left:${tx.x}px;top:${tx.y}px;font-size:${tx.size}px;font-weight:${tx.weight};font-family:'${tx.family}',serif`;
-    el.textContent = tx.txt;
-    makeDraggable(el,tx,'text');
-    el.addEventListener('dblclick',()=>{ el.contentEditable=true; el.focus();
-      el.onblur=()=>{ el.contentEditable=false; tx.txt=el.textContent; }; });
-    canvas.appendChild(el);
-  });
-}
-
-function makeDraggable(el,obj,type) {
-  let sx,sy,ox,oy,ow,oh,mode;
-  const scale = () => parseFloat(document.getElementById('boardCanvas').dataset.scale)||1;
-  el.addEventListener('pointerdown',(e)=>{
-    if(el.contentEditable==='true') return;
-    e.preventDefault(); e.stopPropagation();
-    document.querySelectorAll('.board-item,.board-text').forEach(x=>x.classList.remove('selected'));
-    el.classList.add('selected');
-    mode = e.target.classList.contains('resize-h') ? 'resize' : 'move';
-    sx=e.clientX; sy=e.clientY; ox=obj.x; oy=obj.y; ow=obj.w; oh=obj.h;
-    el.setPointerCapture(e.pointerId);
-  });
-  el.addEventListener('pointermove',(e)=>{
-    if(!mode) return;
-    const s=scale(), dx=(e.clientX-sx)/s, dy=(e.clientY-sy)/s;
-    if(mode==='move'){ obj.x=ox+dx; obj.y=oy+dy; el.style.left=obj.x+'px'; el.style.top=obj.y+'px'; }
-    else if(mode==='resize'&&type==='item'){ obj.w=Math.max(40,ow+dx); obj.h=Math.max(40,oh+dy); el.style.width=obj.w+'px'; el.style.height=obj.h+'px'; }
-  });
-  el.addEventListener('pointerup',(e)=>{ mode=null; try{el.releasePointerCapture(e.pointerId);}catch(_){} });
-}
-
-function autoLayout(){ applyTemplate(); log('Board auto-arranged','success'); }
-function renderBoardTexts(){
-  if(boardState.texts[0]) boardState.texts[0].txt = document.getElementById('boardTitle').value;
-  if(boardState.texts[1]) boardState.texts[1].txt = document.getElementById('boardSub').value;
-  drawBoard();
-}
-
-async function downloadBoardPNG() {
-  if(boardState.items.length===0){ alert('ยังไม่มีภาพบน board'); return; }
-  const c = document.createElement('canvas');
-  c.width = boardState.W; c.height = boardState.H;
-  const ctx = c.getContext('2d');
-  ctx.fillStyle='#fbfaf7'; ctx.fillRect(0,0,c.width,c.height);
-  for(const it of boardState.items){
-    const card = state.cards[it.key]; if(!card?.img) continue;
-    await new Promise(res=>{
-      const img = new Image();
-      img.onload=()=>{
-        const ir=img.width/img.height, br=it.w/it.h;
-        let sw,sh,sx2,sy2;
-        if(ir>br){ sh=img.height; sw=sh*br; sx2=(img.width-sw)/2; sy2=0; }
-        else{ sw=img.width; sh=sw/br; sx2=0; sy2=(img.height-sh)/2; }
-        ctx.drawImage(img,sx2,sy2,sw,sh,it.x,it.y,it.w,it.h); res();
-      };
-      img.onerror=res; img.src=card.img;
+    // portrait-hero / portrait-full: hero on top, grid below
+    const heroH=Math.round(S.h*0.40);
+    if(imgs[0]) items.push({dataUrl:imgs[0].dataUrl,label:imgs[0].th,x:pad,y:top,w:S.w-pad*2,h:heroH});
+    const rest=imgs.slice(1);
+    const below=top+heroH+gap;
+    const cols=rest.length<=2?rest.length||1:(rest.length<=4?2:3);
+    const rows=Math.ceil(rest.length/cols);
+    const cw=(S.w-pad*2-gap*(cols-1))/cols;
+    const ch=rows?(S.h-below-pad-gap*(rows-1))/rows:0;
+    rest.forEach((im,i)=>{
+      const c=i%cols,r=Math.floor(i/cols);
+      items.push({dataUrl:im.dataUrl,label:im.th,x:pad+c*(cw+gap),y:below+r*(ch+gap),w:cw,h:ch});
     });
   }
-  boardState.texts.forEach(tx=>{
-    ctx.fillStyle='#2a2a2a'; ctx.font=`${tx.weight} ${tx.size}px ${tx.family}, serif`;
-    ctx.textBaseline='top'; ctx.fillText(tx.txt,tx.x,tx.y);
+  return items;
+}
+
+function paintBoard(){
+  const canvas=document.getElementById('boardCanvas');
+  const S=+canvas.dataset.w;
+  canvas.innerHTML='';
+  boardItems.forEach((it,idx)=>{
+    if(it.isHeader){
+      const d=document.createElement('div');
+      d.className='board-header-block';
+      d.style.left=it.x+'px'; d.style.top=it.y+'px';
+      d.style.width=it.w+'px'; d.style.height=it.h+'px';
+      d.innerHTML=`<div class="bh-title" style="font-size:${Math.round(it.h*0.5)}px">${it.title}</div>
+        <div class="bh-sub" style="font-size:${Math.round(it.h*0.16)}px">${it.sub}</div>`;
+      d.ondblclick=()=>editHeader(idx);
+      makeDraggable(d,idx);
+      canvas.appendChild(d);
+    } else {
+      const d=document.createElement('div');
+      d.className='board-item';
+      d.style.left=it.x+'px'; d.style.top=it.y+'px';
+      d.style.width=it.w+'px'; d.style.height=it.h+'px';
+      d.innerHTML=`<img src="${it.dataUrl}"><div class="bi-label" style="font-size:${Math.max(10,Math.round(S*0.013))}px">${it.label}</div><div class="bi-resize"></div>`;
+      makeDraggable(d,idx);
+      makeResizable(d.querySelector('.bi-resize'),idx);
+      canvas.appendChild(d);
+    }
   });
-  const a=document.createElement('a'); a.href=c.toDataURL('image/png');
-  a.download=`khangkan-board-${Date.now()}.png`; a.click();
-  log('Board PNG downloaded','success');
 }
 
-function downloadSeparate() {
-  const done = OUTPUTS.filter(o=>state.cards[o.key]?.img);
-  if(done.length===0){ alert('ยังไม่มีภาพ'); return; }
-  done.forEach((o,i)=>setTimeout(()=>{
-    const a=document.createElement('a'); a.href=state.cards[o.key].img;
-    a.download=`khangkan-${o.num}-${o.key}.png`; a.click();
-  }, i*300));
-  log(`Downloading ${done.length} images...`,'success');
+function editHeader(idx){
+  const it=boardItems[idx];
+  const t=prompt('หัวข้อ board:', it.title);
+  if(t!==null) it.title=t;
+  const s=prompt('คำบรรยายรอง:', it.sub);
+  if(s!==null) it.sub=s;
+  paintBoard();
 }
 
-document.addEventListener('pointerdown',(e)=>{
-  if(e.target.id==='boardCanvas'||e.target.id==='boardWrap')
-    document.querySelectorAll('.board-item,.board-text').forEach(x=>x.classList.remove('selected'));
-});
+function makeDraggable(el,idx){
+  el.addEventListener('pointerdown',e=>{
+    if(e.target.classList.contains('bi-resize')) return;
+    e.preventDefault();
+    const canvas=document.getElementById('boardCanvas');
+    const scale=+canvas.dataset.scale;
+    const it=boardItems[idx];
+    const sx=e.clientX, sy=e.clientY, ox=it.x, oy=it.y;
+    const move=ev=>{
+      it.x=ox+(ev.clientX-sx)/scale;
+      it.y=oy+(ev.clientY-sy)/scale;
+      el.style.left=it.x+'px'; el.style.top=it.y+'px';
+    };
+    const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); };
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  });
+}
+
+function makeResizable(handle,idx){
+  handle.addEventListener('pointerdown',e=>{
+    e.preventDefault(); e.stopPropagation();
+    const canvas=document.getElementById('boardCanvas');
+    const scale=+canvas.dataset.scale;
+    const it=boardItems[idx];
+    const sx=e.clientX, sy=e.clientY, ow=it.w, oh=it.h;
+    const el=handle.parentElement;
+    const move=ev=>{
+      it.w=Math.max(60,ow+(ev.clientX-sx)/scale);
+      it.h=Math.max(60,oh+(ev.clientY-sy)/scale);
+      el.style.width=it.w+'px'; el.style.height=it.h+'px';
+    };
+    const up=()=>{ document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up); };
+    document.addEventListener('pointermove',move);
+    document.addEventListener('pointerup',up);
+  });
+}
+
+async function downloadBoardPNG(){
+  const canvas=document.getElementById('boardCanvas');
+  const W=+canvas.dataset.w, H=+canvas.dataset.h;
+  const c=document.createElement('canvas');
+  c.width=W; c.height=H;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#f4efe6'; ctx.fillRect(0,0,W,H);
+
+  // preload images
+  const loaded={};
+  await Promise.all(boardItems.filter(i=>!i.isHeader).map(it=>new Promise(res=>{
+    const im=new Image(); im.onload=()=>{loaded[it.dataUrl]=im;res();}; im.onerror=res; im.src=it.dataUrl;
+  })));
+
+  boardItems.forEach(it=>{
+    if(it.isHeader){
+      ctx.fillStyle='#2a2018';
+      ctx.font=`900 ${Math.round(it.h*0.5)}px Fraunces, serif`;
+      ctx.textBaseline='top';
+      ctx.fillText(it.title, it.x, it.y);
+      ctx.fillStyle='#7a5a3a';
+      ctx.font=`${Math.round(it.h*0.16)}px monospace`;
+      ctx.fillText(it.sub, it.x, it.y+Math.round(it.h*0.55));
+    } else {
+      const im=loaded[it.dataUrl];
+      if(im){
+        // cover fit
+        const ir=im.width/im.height, br=it.w/it.h;
+        let sw,sh,sx,sy;
+        if(ir>br){ sh=im.height; sw=sh*br; sx=(im.width-sw)/2; sy=0; }
+        else { sw=im.width; sh=sw/br; sx=0; sy=(im.height-sh)/2; }
+        ctx.drawImage(im,sx,sy,sw,sh,it.x,it.y,it.w,it.h);
+      }
+      // label
+      const lg=ctx.createLinearGradient(0,it.y+it.h-40,0,it.y+it.h);
+      lg.addColorStop(0,'rgba(20,15,10,0)'); lg.addColorStop(1,'rgba(20,15,10,.78)');
+      ctx.fillStyle=lg; ctx.fillRect(it.x,it.y+it.h-40,it.w,40);
+      ctx.fillStyle='#f4efe6'; ctx.font=`${Math.max(13,Math.round(W*0.013))}px monospace`;
+      ctx.textBaseline='bottom';
+      ctx.fillText(it.label, it.x+8, it.y+it.h-7);
+    }
+  });
+
+  const a=document.createElement('a');
+  a.download='khangkan-board.png';
+  a.href=c.toDataURL('image/png');
+  a.click();
+  toast('ดาวน์โหลด PNG รวมแล้ว ✓');
+}
+
+function downloadBoardSeparate(){
+  state.outputs.forEach((o,i)=>{
+    setTimeout(()=>{
+      const a=document.createElement('a');
+      a.download=`khangkan-${o.id}.png`;
+      a.href=o.dataUrl; a.click();
+    }, i*250);
+  });
+  toast(`ดาวน์โหลด ${state.outputs.length} ภาพแยกชิ้น — เอาไปต่อใน Figma/Canva ได้`);
+}
+
+/* ════════════════ UI HELPERS ════════════════ */
+function openModal(src){ document.getElementById('modalImg').src=src; document.getElementById('modal').classList.add('show'); }
+function toggleDrawer(){ document.getElementById('drawer').classList.toggle('show'); }
+let _tt;
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2600);
+}
 
 init();
 </script>
