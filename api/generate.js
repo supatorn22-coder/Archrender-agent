@@ -1,129 +1,114 @@
 // /api/generate.js — Vercel Serverless Function
-// Proxies image generation to Google Gemini, keeping the API key server-side.
-// Set GEMINI_API_KEY in Vercel → Project → Settings → Environment Variables.
-
-export const config = {
-  maxDuration: 60,
-};
+// Proxies image generation to Google Gemini (Nano Banana), keeping the API key server-side.
+// Set GEMINI_API_KEY in Vercel → Project → Settings → Environment Variables, then Redeploy.
 
 const MODELS = [
-  'gemini-3.1-flash-image',
-  'gemini-3.1-flash-image-preview',
-  'gemini-2.5-flash-image',
   'gemini-3-pro-image',
+  'gemini-3.1-flash-image',
+  'gemini-2.5-flash-image',
 ];
 
+export const config = {
+  api: { bodyParser: { sizeLimit: '12mb' } },
+};
+
 export default async function handler(req, res) {
-  // CORS (same-origin in production, but harmless to allow)
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'GEMINI_API_KEY not set in Vercel environment variables.' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    // Vercel parses JSON body automatically; fall back to manual parse if needed.
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { prompt, sketch, sketch2, mood, mode } = body || {};
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY not set on server. ตั้งค่าใน Vercel → Settings → Environment Variables แล้ว Redeploy' });
+  }
 
-    if (!prompt) return res.status(400).json({ error: 'Missing prompt' });
+  // parse body (Vercel may pass string or object)
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
+  const { prompt = '', ratio = '16:9', sketches = [], refs = [] } = body || {};
 
-    // Sanitize base64: strip data-url prefix + any whitespace/newlines
-    const clean = (b64) => {
-      if (!b64 || typeof b64 !== 'string') return null;
-      let s = b64.trim();
-      if (s.startsWith('data:')) s = s.split(',')[1] || '';
-      return s.replace(/\s/g, '');
-    };
-    const sketchB64 = clean(sketch);
-    const sketch2B64 = clean(sketch2);
-    const moodB64 = clean(mood);
+  if (!prompt) {
+    return res.status(400).json({ error: 'missing prompt' });
+  }
 
-    // ── PROMPT MODE — generate an optimized image-gen prompt only (cheap text model, saves tokens/cost) ──
-    if (mode === 'prompt') {
-      const sys = `You are an expert architectural visualization prompt engineer. Based on the description below, write ONE concise, vivid, ready-to-use image-generation prompt (for Midjourney/Stable Diffusion/Gemini) that would produce this architectural view. Output ONLY the prompt text, no preamble, no explanation, max 120 words.\n\nDESCRIPTION:\n${prompt}`;
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-        { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ contents:[{ role:'user', parts:[{text:sys}] }] }) }
-      );
-      const d = await r.json();
-      if (d.error) return res.status(200).json({ error: d.error.message });
-      const text = (d.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('').trim();
-      return res.status(200).json({ text: text || prompt, mode:'prompt' });
-    }
+  // build Gemini content parts
+  const parts = [];
+  if (Array.isArray(sketches) && sketches.length) {
+    parts.push({ text: 'INPUT SKETCH / PLAN (ground truth — reproduce this exact design, geometry and layout):' });
+    sketches.forEach(s => {
+      if (s && s.data) parts.push({ inlineData: { mimeType: s.mime || 'image/png', data: s.data } });
+    });
+  }
+  if (Array.isArray(refs) && refs.length) {
+    parts.push({ text: 'STYLE REFERENCE ONLY (use for look/material/mood — do NOT copy its geometry):' });
+    refs.forEach(r => {
+      if (r && r.data) parts.push({ inlineData: { mimeType: r.mime || 'image/png', data: r.data } });
+    });
+  }
+  parts.push({ text: prompt });
 
-    // Build Gemini parts: text first, then images
-    const parts = [{ text: prompt }];
-    if (sketchB64)  parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketchB64 } });
-    if (sketch2B64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: sketch2B64 } });
-    if (moodB64)    parts.push({ inline_data: { mime_type: 'image/jpeg', data: moodB64 } });
-
-    let lastErr = 'All models failed';
-
-    for (const model of MODELS) {
-      try {
-        const r = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts }],
-              generationConfig: { responseModalities: ['IMAGE', 'TEXT'], temperature: 0.8 }
-            })
-          }
-        );
-
-        const d = await r.json();
-
-        if (d.error) { lastErr = `${model}: ${d.error.message}`; continue; }
-
-        // Extract image + text from response
-        let image = null, mime = 'image/png', text = '';
-        const respParts = d.candidates?.[0]?.content?.parts || [];
-        for (const p of respParts) {
-          if (p.inlineData?.data)      { image = p.inlineData.data; mime = p.inlineData.mimeType || 'image/png'; }
-          else if (p.inline_data?.data){ image = p.inline_data.data; mime = p.inline_data.mime_type || 'image/png'; }
-          else if (p.text) text += p.text;
-        }
-
-        if (image) {
-          return res.status(200).json({ image, mime, text, model });
-        }
-        // No image — keep last text as the error/explanation, try next model
-        lastErr = text || `${model}: no image returned`;
-      } catch (e) {
-        lastErr = `${model}: ${e.message}`;
-      }
-    }
-
-    // All models failed — fetch the list this key CAN access, to diagnose
+  let lastErr = '';
+  for (const model of MODELS) {
     try {
-      const lr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
-      const ld = await lr.json();
-      const imageModels = (ld.models || [])
-        .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => m.name.replace('models/', ''))
-        .filter(n => n.toLowerCase().includes('image'));
-      if (imageModels.length) {
-        lastErr += ` | Image models your key CAN use: ${imageModels.join(', ')}`;
-      } else {
-        const any = (ld.models || []).map(m => m.name.replace('models/', '')).slice(0, 8);
-        lastErr += ` | No image-capable models found. Your key has access to: ${any.join(', ') || 'none'}. Enable billing + image generation at aistudio.google.com`;
-      }
+      const img = await callGemini(model, key, parts);
+      if (img) return res.status(200).json({ image: img, model });
+      lastErr = `model ${model}: no image returned`;
     } catch (e) {
-      lastErr += ` | (could not list models: ${e.message})`;
+      lastErr = `model ${model}: ${e.message || e}`;
+      // try next model on 400/404/429, otherwise keep trying too
     }
-
-    return res.status(200).json({ error: lastErr });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
   }
+  return res.status(502).json({ error: lastErr || 'generation failed on all models' });
+}
+
+async function callGemini(model, key, parts) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+
+  // primary: IMAGE only
+  let r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: { responseModalities: ['IMAGE'], temperature: 0.35 },
+    }),
+  });
+
+  if (!r.ok) {
+    let detail = '';
+    try { const j = await r.json(); detail = j.error?.message || ''; } catch {}
+    // fallback: some models require TEXT+IMAGE modalities
+    if (r.status === 400 && /responseModalities|IMAGE|modal/i.test(detail)) {
+      r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'], temperature: 0.35 },
+        }),
+      });
+      if (!r.ok) {
+        let d2 = '';
+        try { const j2 = await r.json(); d2 = j2.error?.message || ''; } catch {}
+        throw new Error(`${r.status}: ${d2 || r.statusText}`);
+      }
+    } else {
+      throw new Error(`${r.status}: ${detail || r.statusText}`);
+    }
+  }
+
+  const data = await r.json();
+  return extractImage(data);
+}
+
+function extractImage(data) {
+  const cand = data?.candidates?.[0];
+  const parts = cand?.content?.parts || [];
+  for (const p of parts) {
+    if (p.inlineData?.data) return p.inlineData.data;
+    if (p.inline_data?.data) return p.inline_data.data;
+  }
+  return null;
 }

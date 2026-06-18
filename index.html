@@ -935,9 +935,22 @@ async function genOne(id){
   const ratio=document.getElementById('ratio').value;
   const st=document.getElementById('st-'+id);
 
-  // build prompt
-  let promptText = p.prompt;
+  // build prompt with strong fidelity anchor to the uploaded sketch/plan
+  const hasSketch = state.sketch.length>0;
+  const hasRef = state.ref.length>0;
+
+  let promptText = '';
+  if(hasSketch){
+    promptText += `CRITICAL — You are given an input architectural sketch/plan/drawing as the FIRST image. This is the ground truth. Your output MUST faithfully reproduce the EXACT same design from that input image: same building footprint, same massing and proportions, same number of floors, same window and door positions, same roof shape, same layout and spatial arrangement, same landscape elements and their placement. Do NOT invent a new building or rearrange anything. Treat the input as a locked blueprint and only change the representation/medium as instructed below.\n\n`;
+  }
+  promptText += p.prompt;
+  if(hasRef){
+    promptText += hasSketch
+      ? `\n\nUse the reference image(s) ONLY for style, materials, mood, color and atmosphere — never let the reference change the geometry or layout, which must stay locked to the input sketch.`
+      : `\n\nFollow the reference image(s) for style, materials and mood.`;
+  }
   if(brief) promptText += `\n\nProject brief / focus: ${brief}`;
+  if(hasSketch) promptText += `\n\nReminder: keep geometry, proportions and layout strictly identical to the input sketch. Only the drawing style/output type changes.`;
   promptText += `\n\nOutput a single ${ratio} image. High detail, professional presentation quality. No watermark, no random text labels.`;
 
   // collect images (clean base64, no prefix)

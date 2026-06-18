@@ -1,50 +1,44 @@
-# Khangkan Render Agent — Vercel Deploy
+# Khangkan Render Agent v2
 
-ระบบ sketch-to-render สำหรับงานสถาปัตย์/แลนด์สเคป/อินทีเรีย
-ใส่ API key **ครั้งเดียว** ใน Vercel แล้วใช้งานได้เลย ไม่ต้องใส่ซ้ำทุกครั้ง
+เครื่องมือ sketch-to-render + diagram + model + edit สำหรับงานสถาปัตย์และแลนด์สเคป
+ขับเคลื่อนด้วย Google Gemini (Nano Banana) ผ่าน Vercel serverless proxy
 
----
-
-## โครงสร้างไฟล์
+## โครงสร้างไฟล์ (เหมือนเดิม)
 ```
-/
-├── index.html          ← หน้าเว็บ (frontend)
-├── api/
-│   └── generate.js     ← serverless function (ซ่อน API key + เรียก Gemini)
-└── vercel.json         ← config
+📁 api
+   └── generate.js     ← serverless proxy (ซ่อน API key ฝั่ง server)
+📄 index.html          ← หน้าเว็บ (4 หมวด + preset library)
+📄 README.md
 ```
+> ไม่มี `vercel.json` — Vercel หา `api/` เองอัตโนมัติ
 
----
+## สิ่งที่เพิ่มใน v2
+4 หมวดงาน เรียงตามความสำคัญ:
+- 🪵 **Model** — wooden / acrylic / 3D-print axonometric / figurine / white massing
+- 🔍 **Diagram** — explosion / planting analysis / courtyard analysis / bird's-eye / axon / section / elevation
+- 🗺 **Plan** — CAD→bird's eye / plan→3D cutaway / ลงสีแปลนภายใน / ลงสีผังรวม
+- ✨ **Render/Edit** — photoreal / illustration / เปลี่ยนวัสดุ / แสง / ฤดูกาล / มุมมอง / รีโนเวท
 
-## วิธี Deploy (3 ขั้นตอน)
+แต่ละ preset = prompt สำเร็จรูป กดปุ่มเลือกได้หลายอันพร้อมกัน → กด "สร้างภาพ" ทีเดียวได้ทั้งชุด
 
-### 1. อัพโหลดไฟล์ขึ้น Vercel
-- ลากโฟลเดอร์ทั้งหมด (index.html + api/ + vercel.json) เข้า Vercel
-- หรือ push ขึ้น GitHub แล้วเชื่อมกับ Vercel
+## Deploy
 
-### 2. ตั้งค่า API Key (ทำครั้งเดียว!)
-ไปที่ **Vercel Dashboard → โปรเจกต์ → Settings → Environment Variables**
+### ตั้ง API Key (ทำครั้งเดียว)
+Vercel → Project → Settings → Environment Variables
+- Name: `GEMINI_API_KEY`
+- Value: `AIza...` (จาก aistudio.google.com/apikey)
 
-| Name | Value |
-|------|-------|
-| `GEMINI_API_KEY` | `AIza...` (key จาก aistudio.google.com) |
+แล้ว Deployments → ⋯ → Redeploy
 
-กด **Save**
+### อัปไฟล์ขึ้น GitHub (ทำได้บน iPhone — ทีละไฟล์)
+1. แก้ไฟล์ `index.html` — Add file → upload หรือ แก้ในเว็บ commit ทับ
+2. แก้ไฟล์ `api/generate.js` — เข้าโฟลเดอร์ api → แก้ commit ทับ
+   (ถ้ายังไม่มีโฟลเดอร์ api: Add file → Create new file → พิมพ์ `api/generate.js` ในช่องชื่อ จะสร้างโฟลเดอร์ให้เอง)
+3. Commit → Vercel auto-redeploy
 
-### 3. Redeploy
-ไปที่แท็บ **Deployments → ⋯ → Redeploy**
-(จำเป็น เพื่อให้ env var มีผล)
-
----
-
-## เสร็จแล้ว!
-เปิดเว็บ → อัพโหลด sketch + mood → เขียน brief → กด Generate
-**ไม่ต้องใส่ API key ในหน้าเว็บอีกเลย** ✅
-
----
+env var `GEMINI_API_KEY` ที่ตั้งไว้แล้วยังอยู่ ไม่ต้องตั้งใหม่
 
 ## หมายเหตุ
-- API key เก็บอยู่ฝั่ง server เท่านั้น ปลอดภัย ไม่หลุดในหน้าเว็บ
-- Model ที่ใช้: `gemini-3.1-flash-image` (Nano Banana 2) → fallback อัตโนมัติ
-- ต้องเปิด billing/image generation access ที่ aistudio.google.com
-- ถ้า Generate แล้วขึ้น "GEMINI_API_KEY not set" = ยังไม่ได้ตั้ง env var หรือยังไม่ได้ redeploy
+- model: `gemini-3-pro-image` → fallback `3.1-flash-image` → `2.5-flash-image` อัตโนมัติฝั่ง server
+- ต้องเปิด billing / image generation access ใน Google AI Studio
+- ภาพ sketch/plan + reference แนบได้หลายภาพ
